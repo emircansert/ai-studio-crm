@@ -1,0 +1,281 @@
+version: 1
+
+entities:
+  STARTUP_LIBRARY:
+    columns:
+      "Last Contact":
+        target: "organizations.last_contact_date"
+        transform: "parse_date"
+      "Added By":
+        target: "organizations.added_by_text"
+        transform: "trim"
+      "Status":
+        target: "organizations.lifecycle_status"
+        transform: "normalize_status"
+        vocabulary: "company_status"
+      "Process Status (1 to 7)":
+        target: "organizations.lifecycle_status"
+        transform: "normalize_status"
+        vocabulary: "company_status"
+      "Startup":
+        target: "organizations.name"
+        transform: "required_trim"
+      "Website":
+        target: "organizations.website_url"
+        transform: "normalize_url_and_domain"
+      "Category":
+        target: "organization_tags"
+        transform: "split_tags"
+        tag_group: "CATEGORY"
+      "Vertical":
+        target: "organization_tags"
+        transform: "split_tags"
+        tag_group: "VERTICAL"
+      "Solution / Use-case":
+        target: "organizations.solution_summary"
+        transform: "trim"
+      "Coğrafya":
+        target: "organizations.geography_text"
+        transform: "normalize_geography"
+      "Geography":
+        target: "organizations.geography_text"
+        transform: "normalize_geography"
+      "Kontak Kişisi":
+        target: "contacts"
+        transform: "extract_contact_email_phone"
+        preserve_raw: true
+      "Contact Person":
+        target: "contacts"
+        transform: "extract_contact_email_phone"
+        preserve_raw: true
+      "Notlar / Yorumlar":
+        target: "notes"
+        transform: "create_note"
+        note_type: "IMPORT_NOTE"
+      "Notes / Comments":
+        target: "notes"
+        transform: "create_note"
+        note_type: "IMPORT_NOTE"
+      "Kaynak":
+        target: "organizations.source_text"
+        transform: "trim"
+      "Source":
+        target: "organizations.source_text"
+        transform: "trim"
+      "Boru":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "BORU"
+      "Borçelik":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "BORCELIK"
+      "Supsan":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "SUPSAN"
+      "Oto":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "OTO"
+      "Automotive":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "OTO"
+      "CAT":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "CAT"
+      "Enerji":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "ENERGY"
+      "Energy":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "ENERGY"
+      "Liman":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "PORT"
+      "Port":
+        target: "organization_borusan_fit"
+        transform: "flag_to_fit"
+        borusan_company_code: "PORT"
+
+  POC_OPPORTUNITIES:
+    columns:
+      "Son Görüşme":
+        target: "opportunities.last_contact_date"
+        transform: "parse_date_with_warning"
+      "Last Contact":
+        target: "opportunities.last_contact_date"
+        transform: "parse_date_with_warning"
+      "Şirket":
+        target: "opportunities.borusan_company"
+        transform: "normalize_borusan_company"
+      "Business Unit":
+        target: "opportunities.borusan_company"
+        transform: "normalize_borusan_company"
+      "Startup":
+        target: "opportunities.organization"
+        transform: "match_or_create_organization_by_name"
+      "Konu":
+        target: "opportunities.topic"
+        transform: "trim"
+      "Topic":
+        target: "opportunities.topic"
+        transform: "trim"
+      "Son Durum":
+        target: "opportunities.stage"
+        transform: "normalize_status"
+        vocabulary: "opportunity_stage"
+      "Status":
+        target: "opportunities.stage"
+        transform: "normalize_status"
+        vocabulary: "opportunity_stage"
+      "POC Şartları":
+        target: "opportunities.terms_text"
+        transform: "trim"
+      "PoC Terms":
+        target: "opportunities.terms_text"
+        transform: "trim"
+      "Notlar":
+        target: "notes"
+        transform: "create_note"
+        note_type: "IMPORT_NOTE"
+      "Notes":
+        target: "notes"
+        transform: "create_note"
+        note_type: "IMPORT_NOTE"
+
+  EVENTS:
+    columns:
+      "Etkinlik Adı":
+        target: "events.name"
+        transform: "required_trim"
+      "Event Name":
+        target: "events.name"
+        transform: "required_trim"
+      "Date":
+        target: "events.date_text"
+        transform: "parse_event_date_or_preserve_text"
+      "Alan":
+        target: "event_tags"
+        transform: "split_tags"
+        tag_group: "EVENT_AREA"
+      "Domain":
+        target: "event_tags"
+        transform: "split_tags"
+        tag_group: "EVENT_AREA"
+      "Lokasyon":
+        target: "events.location_text"
+        transform: "trim"
+      "Location":
+        target: "events.location_text"
+        transform: "trim"
+      "AI Program Relevance":
+        target: "events.ai_program_relevance"
+        transform: "normalize_rating"
+      "Değer yaratma Opsiyonu":
+        target: "events.value_creation_potential"
+        transform: "normalize_rating"
+      "Value Creation Potential":
+        target: "events.value_creation_potential"
+        transform: "normalize_rating"
+      "Kategori":
+        target: "event_tags"
+        transform: "split_tags"
+        tag_group: "EVENT_CATEGORY"
+      "Category":
+        target: "event_tags"
+        transform: "split_tags"
+        tag_group: "EVENT_CATEGORY"
+      "Katılımcı":
+        target: "event_participants.participant_role"
+        transform: "split_participant_roles"
+      "Recommended Attendee":
+        target: "event_participants.participant_role"
+        transform: "split_participant_roles"
+      "Katılan/Ekleyen":
+        target: "events.added_by_text"
+        transform: "trim"
+      "Attended / Added By":
+        target: "events.added_by_text"
+        transform: "trim"
+      "Yorumlar":
+        target: "events.comments"
+        transform: "trim"
+      "Comments":
+        target: "events.comments"
+        transform: "trim"
+      "Katılımcı İsmi":
+        target: "event_participants.participant_name"
+        transform: "trim"
+      "Attendee Name":
+        target: "event_participants.participant_name"
+        transform: "trim"
+      "Katılımcı Notu":
+        target: "event_participants.participant_note"
+        transform: "trim"
+      "Attendee Note":
+        target: "event_participants.participant_note"
+        transform: "trim"
+
+  NETWORK:
+    columns:
+      "Institution":
+        target: "organizations.name"
+        transform: "required_trim"
+        organization_type: "NETWORK_INSTITUTION"
+      "Ekleyen / Görüşen":
+        target: "organizations.added_by_text"
+        transform: "trim"
+      "Added By / Contact Owner":
+        target: "organizations.added_by_text"
+        transform: "trim"
+      "Type":
+        target: "organizations.organization_subtype"
+        transform: "normalize_network_type"
+      "Expertise":
+        target: "organization_tags"
+        transform: "split_tags"
+        tag_group: "EXPERTISE"
+      "Geography":
+        target: "organizations.geography_text"
+        transform: "normalize_geography"
+      "Contact Person":
+        target: "contacts"
+        transform: "extract_contact_email_phone"
+        preserve_raw: true
+      "Relationship":
+        target: "organizations.relationship_status_id"
+        transform: "normalize_relationship"
+      "Notes":
+        target: "notes"
+        transform: "create_note"
+        note_type: "IMPORT_NOTE"
+
+  AI_TOOLS:
+    columns:
+      "Ekleyen":
+        target: "ai_tools.added_by_text"
+        transform: "trim"
+      "Added By":
+        target: "ai_tools.added_by_text"
+        transform: "trim"
+      "Tool Name":
+        target: "ai_tools.name"
+        transform: "required_trim"
+      "Category":
+        target: "ai_tools.category_text"
+        transform: "trim"
+      "Solution":
+        target: "ai_tools.solution_summary"
+        transform: "trim"
+      "Notlar":
+        target: "ai_tools.notes"
+        transform: "trim"
+      "Notes":
+        target: "ai_tools.notes"
+        transform: "trim"

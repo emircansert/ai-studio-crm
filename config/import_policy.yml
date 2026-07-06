@@ -1,0 +1,75 @@
+version: 1
+
+commit_actions:
+  AUTO_MATCH: "Use one existing compatible record without row-level admin intervention."
+  CREATE_NEW: "Create a new normalized record after batch confirmation."
+  REQUIRES_DECISION: "Hold the staged row until an admin resolves it."
+  SKIP: "Keep raw staging data and warnings; write no domain record."
+
+organization_matching:
+  exact_website_domain_match:
+    action: "AUTO_MATCH"
+    warning_code: "DOMAIN_MATCHED"
+    requires_unique_match: true
+    requires_compatible_organization_type: true
+  exact_normalized_name_match:
+    action: "AUTO_MATCH"
+    warning_code: "NAME_MATCHED"
+    requires_unique_match: true
+    blocked_by_domain_conflict: true
+  duplicate_name_missing_domain:
+    action: "REQUIRES_DECISION"
+    warning_code: "DUPLICATE_NAME_MISSING_DOMAIN"
+  duplicate_domain_different_name:
+    action: "REQUIRES_DECISION"
+    warning_code: "DUPLICATE_DOMAIN_DIFFERENT_NAME"
+
+poc_matching:
+  existing_startup_unique_match:
+    action: "AUTO_MATCH"
+    warning_code: "POC_LINKED_TO_EXISTING_ORGANIZATION"
+  startup_not_found:
+    action: "REQUIRES_DECISION"
+    proposed_resolution: "Create minimal startup candidate or link manually."
+    warning_code: "POC_ORGANIZATION_CREATED_FROM_REFERENCE"
+  missing_borusan_company:
+    action: "REQUIRES_DECISION"
+    warning_code: "UNKNOWN_BORUSAN_COMPANY"
+
+network_matching:
+  same_name_existing_network_institution:
+    action: "AUTO_MATCH"
+    warning_code: "NETWORK_NAME_MATCHED"
+    requires_unique_match: true
+  same_name_existing_non_network_organization:
+    action: "REQUIRES_DECISION"
+    warning_code: "NETWORK_NAME_CONFLICT"
+
+validation_policy:
+  unknown_status:
+    action: "REQUIRES_DECISION"
+    severity: "ERROR"
+    warning_code: "UNKNOWN_STATUS"
+  partial_event_date:
+    action: "CREATE_NEW"
+    severity: "WARNING"
+    warning_code: "PARTIAL_DATE"
+    preserve_raw_text: true
+  failed_opportunity_date:
+    action: "REQUIRES_DECISION"
+    severity: "WARNING"
+    warning_code: "DATE_PARSE_FAILED"
+  missing_website:
+    action: "CREATE_NEW"
+    severity: "WARNING"
+    warning_code: "MISSING_WEBSITE"
+    unless_duplicate_name: "REQUIRES_DECISION"
+  missing_contact_email:
+    action: "CREATE_NEW"
+    severity: "WARNING"
+    warning_code: "CONTACT_WITHOUT_EMAIL"
+  missing_required_name:
+    action: "SKIP"
+    severity: "ERROR"
+    warning_code: "MISSING_REQUIRED_NAME"
+

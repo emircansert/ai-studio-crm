@@ -1,0 +1,75 @@
+version: 1
+
+borusan_companies:
+  BORU:
+    name: "Borusan Boru"
+    legacy_excel_columns:
+      - "Boru"
+    aliases:
+      - "Boru"
+      - "Borusan Boru"
+  BORCELIK:
+    name: "Borçelik"
+    english_name: "Borcelik"
+    legacy_excel_columns:
+      - "Borçelik"
+    aliases:
+      - "Borçelik"
+      - "Borcelik"
+  SUPSAN:
+    name: "Supsan"
+    legacy_excel_columns:
+      - "Supsan"
+    aliases:
+      - "Supsan"
+  OTO:
+    name: "Borusan Otomotiv"
+    legacy_excel_columns:
+      - "Oto"
+      - "Automotive"
+    aliases:
+      - "Oto"
+      - "OTO"
+      - "Borusan Otomotiv"
+      - "Automotive"
+  CAT:
+    name: "Borusan CAT"
+    legacy_excel_columns:
+      - "CAT"
+    aliases:
+      - "CAT"
+      - "Borusan CAT"
+  ENERGY:
+    name: "Borusan EnBW Enerji"
+    legacy_excel_columns:
+      - "Enerji"
+      - "Energy"
+    aliases:
+      - "Enerji"
+      - "Energy"
+      - "Borusan EnBW"
+      - "Borusan EnBW Enerji"
+  PORT:
+    name: "Borusan Port"
+    legacy_excel_columns:
+      - "Liman"
+      - "Port"
+    aliases:
+      - "Liman"
+      - "Port"
+      - "Borusan Port"
+  BORUSAN_NEXT:
+    name: "Borusan Next"
+    legacy_excel_columns: []
+    aliases:
+      - "Borusan Next"
+
+fit_values:
+  truthy:
+    - "x"
+    - "X"
+    - "yes"
+    - "true"
+    - "1"
+  default_fit_level: "RELEVANT"
+

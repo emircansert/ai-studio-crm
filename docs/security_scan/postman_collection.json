@@ -1,0 +1,525 @@
+{
+  "info": {
+    "name": "Borusan AI Ecosystem CRM - Security Scan Starter",
+    "_postman_id": "00000000-0000-4000-8000-000000000000",
+    "description": "Starter collection for Borusan Information Security. Uses placeholder credentials and bearer token variables only.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "admin_email",
+      "value": "<admin_test_email>"
+    },
+    {
+      "key": "admin_password",
+      "value": "<admin_test_password>"
+    },
+    {
+      "key": "user_email",
+      "value": "<user_test_email>"
+    },
+    {
+      "key": "user_password",
+      "value": "<user_test_password>"
+    },
+    {
+      "key": "token",
+      "value": "<jwt_token>"
+    },
+    {
+      "key": "organization_id",
+      "value": "<organization_id>"
+    },
+    {
+      "key": "import_batch_id",
+      "value": "<import_batch_id>"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth - Login ADMIN",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Use the returned access_token as {{token}}."
+      }
+    },
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Readiness",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/health/readiness",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health",
+            "readiness"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Current User",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/me",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Organizations - List",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/organizations?limit=10",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "organizations"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Organization Detail",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "organizations",
+            "{{organization_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Use Cases - List",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/use-cases?limit=10",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "use-cases"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Events / Training Program Activities - List",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/program-activities?limit=10&activity_type=ALL",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "program-activities"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "key": "activity_type",
+              "value": "ALL"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "AI Tools - List",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/ai-tools?limit=10",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "ai-tools"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Leaderboard - Champion",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/leaderboard/champion?limit=10",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "leaderboard",
+            "champion"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Admin - Users List",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/users?limit=10",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Requires ADMIN token."
+      }
+    },
+    {
+      "name": "Admin - Audit Logs",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/audit-logs?limit=10",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "audit-logs"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Requires ADMIN token."
+      }
+    },
+    {
+      "name": "Import - Upload Workbook Placeholder",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/imports/upload",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "imports",
+            "upload"
+          ]
+        },
+        "description": "Requires ADMIN token. Use a safe .xlsx test file."
+      }
+    },
+    {
+      "name": "Startup Deck - Upload Placeholder",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/organizations/{{organization_id}}/documents",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "organizations",
+            "{{organization_id}}",
+            "documents"
+          ]
+        },
+        "description": "Authenticated. Use a safe .pdf or .pptx test file."
+      }
+    },
+    {
+      "name": "Admin Branding - Upload Logo Placeholder",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/branding/upload",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "branding",
+            "upload"
+          ]
+        },
+        "description": "Requires ADMIN token. Use safe image test files only."
+      }
+    }
+  ]
+}

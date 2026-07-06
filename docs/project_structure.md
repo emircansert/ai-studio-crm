@@ -1,0 +1,62 @@
+# Project Folder Structure
+
+```text
+borusan-ai-studio-crm/
+  .gitignore
+  README.md
+  .env.example
+  config/
+    borusan_company_mapping.yml
+    column_mapping.yml
+    import_policy.yml
+    sheet_mapping.yml
+    status_mapping.yml
+  docs/
+    architecture.md
+    database_schema.md
+    excel_import_pipeline_spec.md
+    foundation_review.md
+    local_development_setup.md
+    product_requirements.md
+    project_structure.md
+    security_notes.md
+  backend/
+    requirements.txt
+    alembic.ini
+    alembic/
+      env.py
+      versions/
+    app/
+      main.py
+      api/
+        v1/
+          router.py
+          endpoints/
+            health.py
+      core/
+        config.py
+        security.py
+      db/
+        base.py
+        session.py
+      models/
+        __init__.py
+      schemas/
+        health.py
+      services/
+        excel_import/
+          pipeline.py
+    tests/
+  frontend/
+    package.json
+    next.config.mjs
+    tsconfig.json
+    src/
+      app/
+        globals.css
+        layout.tsx
+        page.tsx
+      components/
+      lib/
+        api.ts
+```

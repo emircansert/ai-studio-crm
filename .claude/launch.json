@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "frontend",
+      "autoPort": true,
+      "env": {
+        "NEXT_PUBLIC_API_BASE_URL": "/api/backend",
+        "BACKEND_API_ORIGIN": "http://127.0.0.1:8002"
+      }
+    }
+  ]
+}

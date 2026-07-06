@@ -1,0 +1,185 @@
+version: 1
+
+company_status:
+  INFORMATION_RECEIVED:
+    label: "1- Info"
+    aliases:
+      - "Bilgi"
+      - "Information Received"
+      - "N/A"
+      - "1- Info"
+      - "1-Info"
+  CONTACTED:
+    label: "Contacted"
+    aliases:
+      - "Contacted"
+      - "Görüşülecek"
+  MEETING_HELD:
+    label: "2- Contacted/Positive"
+    aliases:
+      - "Görüşüldü"
+      - "görüşülmüş"
+      - "2- Contacted / Positive"
+      - "2-Contacted / Positive"
+  COMMITTEE_REVIEWED:
+    label: "Reviewed by Committee"
+    aliases:
+      - "Komite olarak görüşüldü"
+  IN_PROGRESS:
+    label: "3-Planned for the Future"
+    aliases:
+      - "Çalışılıyor"
+      - "In Progress"
+      - "Takipte"
+      - "Görüşüldü. Takip edilecek"
+      - "3- Planned for the future"
+      - "3-Planned for the future"
+  DEMO_IN_PROGRESS:
+    label: "Demo in Progress"
+    aliases:
+      - "Demo Aşamasında"
+  DEMO_COMPLETED:
+    label: "Demo Completed"
+    aliases:
+      - "Demo Bitti"
+  DEMO_CONTRACTING:
+    label: "Demo Contracting"
+    aliases:
+      - "Demo Sözleşme Aşamasında"
+  NDA:
+    label: "4-NDA/Contract"
+    aliases:
+      - "NDA"
+      - "4- NDA / Contract"
+      - "4-NDA / Contract"
+  CONTRACTING:
+    label: "Contracting"
+    aliases:
+      - "Sözleşme sürecinde"
+  PROJECTED:
+    label: "Projected"
+    aliases:
+      - "Projelendi"
+  PARTNERED:
+    label: "7- Partnered"
+    aliases:
+      - "Partnered"
+      - "7- Partnered"
+      - "7-Partnered"
+  POC_IN_PROGRESS:
+    label: "5-PoC in Progress"
+    aliases:
+      - "PoC aşamasında"
+      - "PoC In Progress"
+      - "PoC devam ediyor"
+      - "5- PoC In Progress"
+      - "5-PoC In Progress"
+  POC_SUCCESSFUL:
+    label: "6- PoC Successful"
+    aliases:
+      - "PoC Successful"
+      - "6- PoC Successful"
+      - "6-PoC Successful"
+  POC_FAILED:
+    label: "6- PoC Failed"
+    aliases:
+      - "PoC Failed"
+      - "PoC başarısız bulundu"
+      - "6- PoC Failed"
+      - "6-PoC Failed"
+  WORKED_IN_PAST:
+    label: "Worked in the Past"
+    aliases:
+      - "Geçmişte çalışıldı"
+      - "Çalışıldı"
+  NOT_A_FIT:
+    label: "2- Contacted/Negative"
+    aliases:
+      - "Görüşüldü. Beğenilmedi."
+      - "Anlaşılamadı"
+      - "2- Contacted / Negative"
+      - "2-Contacted / Negative"
+  INVESTED_BY_BORUSAN_VENTURES:
+    label: "Borusan Ventures Investment"
+    aliases:
+      - "BV Yatırımı"
+
+opportunity_stage:
+  NDA:
+    label: "NDA"
+    aliases:
+      - "NDA"
+  DISCUSSIONS_ONGOING:
+    label: "Discussions Ongoing"
+    aliases:
+      - "Görüşmeler sürüyor"
+  POC_PREPARATION:
+    label: "PoC Preparation"
+    aliases:
+      - "Haftaya başlayacak PoC"
+      - "POC Hazırlığında"
+  POC_IN_PROGRESS:
+    label: "PoC in Progress"
+    aliases:
+      - "PoC devam ediyor"
+      - "PoC In Progress"
+  NOT_CONTINUING:
+    label: "Not Continuing"
+    aliases:
+      - "Devam etmiyor"
+
+ratings:
+  HIGH:
+    label: "High"
+    aliases:
+      - "High"
+  MEDIUM:
+    label: "Medium"
+    aliases:
+      - "Medium"
+  LOW:
+    label: "Low"
+    aliases:
+      - "Low"
+  UNKNOWN:
+    label: "Unknown"
+    aliases:
+      - "?"
+      - ""
+
+network_relationship:
+  ACQUAINTANCE:
+    label: "Acquaintance"
+    aliases:
+      - "Tanışıklık"
+      - "Known contact"
+  CLOSE_RELATIONSHIP:
+    label: "Close Relationship"
+    aliases:
+      - "Yakın İlişki"
+      - "Close relationship"
+  NO_CLOSE_RELATIONSHIP:
+    label: "No Close Relationship"
+    aliases:
+      - "Yakın ilişki yok"
+      - "No close relationship"
+  INFORMATION_ONLY:
+    label: "Information Only"
+    aliases:
+      - "Bilgi"
+      - "Info"
+  BORUSAN_VENTURES_INVESTOR:
+    label: "Borusan Ventures Investor"
+    aliases:
+      - "Borusan Ventures yatırımcı"
+      - "Borusan Ventures investor"
+  BORUSAN_GROUP_INVESTOR:
+    label: "Borusan Group Investor"
+    aliases:
+      - "Borusan Grubu yatırımcı"
+      - "Borusan Group investor"
+  UNKNOWN:
+    label: "Unknown"
+    aliases:
+      - ""
+      - "-"

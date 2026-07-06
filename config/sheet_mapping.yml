@@ -1,0 +1,83 @@
+version: 1
+workbook_profile:
+  source_filename_example: "Ekosistem_Library_V2.xlsx"
+  language_target: "en"
+  preserve_raw_values: true
+  commit_requires_admin_confirmation: true
+
+sheets:
+  startup_library:
+    source_names:
+      - "Startup Library"
+    entity: "STARTUP_LIBRARY"
+    header_row: 1
+    first_data_row: 2
+    required_columns:
+      - "Startup"
+    notes:
+      - "Primary source for startup/vendor organization records."
+      - "Category is mostly blank in the analyzed workbook; derive categories from verticals and tags."
+
+  poc_opportunities:
+    source_names:
+      - "PoC"
+    entity: "POC_OPPORTUNITIES"
+    header_row: 1
+    first_data_row: 2
+    required_columns:
+      - "Startup"
+      # A list entry means "any one of these header names satisfies the requirement".
+      - ["Şirket", "Business Unit"]
+      - ["Konu", "Topic"]
+    skip_rules:
+      - type: "non_record_tail_value"
+        description: "Rows with values only in column I are loose status/list values, not PoC rows."
+    notes:
+      - "Date values are mixed Excel dates and dd/mm/yyyy strings."
+
+  events:
+    source_names:
+      - "Events"
+    entity: "EVENTS"
+    header_row: 1
+    first_data_row: 2
+    required_columns:
+      # A list entry means "any one of these header names satisfies the requirement".
+      - ["Etkinlik Adı", "Event Name"]
+      - ["Lokasyon", "Location"]
+    notes:
+      - "Date can be blank, partial text, recurring text, or an Excel date."
+
+  network:
+    source_names:
+      - "Network"
+    entity: "NETWORK"
+    header_row: 1
+    first_data_row: 2
+    required_columns:
+      - "Institution"
+    notes:
+      - "Network institutions should be imported as organizations with type NETWORK_INSTITUTION."
+
+  ai_tools:
+    source_names:
+      - "AI Tools"
+    entity: "AI_TOOLS"
+    header_row: 1
+    first_data_row: 2
+    required_columns:
+      - "Tool Name"
+    allow_empty: true
+    notes:
+      - "The analyzed workbook has headers only and no AI tool records."
+
+  controlled_lists:
+    source_names:
+      - "Lists"
+    entity: "CONTROLLED_LISTS"
+    header_row: 1
+    first_data_row: 2
+    allow_empty: false
+    notes:
+      - "Use as seed vocabulary only; it is incomplete compared with real workbook statuses."
+
