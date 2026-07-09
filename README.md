@@ -79,17 +79,27 @@ cd C:\Users\emirc\borusan-ai-studio-crm\backend
 pip install -r requirements.txt
 ```
 
-Create or update `C:\Users\emirc\borusan-ai-studio-crm\.env` from `.env.example`.
+Environment configuration is split per service:
 
-Required backend variables:
+- `backend/.env.example` -> copy to `backend/.env` (FastAPI: database, auth mode, Entra ID, docs exposure)
+- `frontend/.env.example` -> copy to `frontend/.env.local` (Next.js: proxy target, auth mode, Entra ID client settings)
+
+Key backend variables (see `backend/.env.example` for the full annotated list):
 
 ```powershell
 $env:DATABASE_URL="mssql+pyodbc://@localhost\SQLEXPRESS01/BorusanAIEcosystemCRM?driver=ODBC+Driver+17+for+SQL+Server&trusted_connection=yes&TrustServerCertificate=yes"
+$env:ENVIRONMENT="development"   # enables /docs; anything else disables them (fail closed)
+$env:AUTH_MODE="local"           # "entra" for Microsoft Entra ID SSO
 $env:JWT_SECRET_KEY="replace-with-a-long-random-local-secret"
 $env:INITIAL_ADMIN_EMAIL="admin@example.com"
 $env:INITIAL_ADMIN_PASSWORD="change-me-admin-password"
 $env:INITIAL_ADMIN_FULL_NAME="Initial Admin"
 ```
+
+For Microsoft Entra ID SSO (`AUTH_MODE=entra`), also set `ENTRA_TENANT_ID`,
+`ENTRA_CLIENT_ID`, and optionally `ENTRA_AUDIENCE` / `ENTRA_ADMIN_UPNS` on the
+backend, plus the `NEXT_PUBLIC_ENTRA_*` variables on the frontend. Local
+password login is disabled entirely in that mode.
 
 Run migrations and seed controlled data/admin:
 
@@ -104,11 +114,22 @@ Run backend:
 python -m uvicorn app.main:app --reload
 ```
 
-Backend docs:
+Backend docs (only when `ENVIRONMENT=development`; production returns 404):
 
 ```text
 http://127.0.0.1:8000/docs
 ```
+
+### Docker (production images)
+
+```powershell
+# Backend (build from the repository root):
+docker build -f backend/Dockerfile -t borusan-crm-backend .
+# Frontend (NEXT_PUBLIC_* are baked at build time; see frontend/Dockerfile):
+docker build -t borusan-crm-frontend ./frontend --build-arg NEXT_PUBLIC_AUTH_MODE=entra ...
+```
+
+Secrets are never baked into images; pass them at runtime with `--env-file`.
 
 Health endpoints:
 

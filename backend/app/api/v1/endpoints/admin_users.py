@@ -5,6 +5,8 @@ from sqlalchemy import false, func, or_, select, true
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
+from app.core.config import settings
+from app.core.identity import SSO_PASSWORD_PLACEHOLDER
 from app.core.security import hash_password
 from app.core.section_access import (
     default_access_rows_for_user,
@@ -120,16 +122,17 @@ async def update_user_section_access(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
+    upn = (user.email or "").strip().lower()
     before = get_user_section_access_map(db, user)
     existing_rows = {
         row.section_key: row
-        for row in db.execute(select(UserSectionAccess).where(UserSectionAccess.user_id == user.id)).scalars().all()
+        for row in db.execute(select(UserSectionAccess).where(UserSectionAccess.user_upn == upn)).scalars().all()
     }
     for section_key, access_level in requested_access.items():
         row = existing_rows.get(section_key)
         if row is None:
             row = UserSectionAccess(
-                user_id=user.id,
+                user_upn=upn,
                 section_key=section_key,
                 access_level=access_level,
                 granted_by_user_id=current_user.id,
@@ -169,12 +172,15 @@ async def create_user(
 ) -> User:
     if db.execute(select(User).where(User.email == payload.email.lower())).scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
+    # Under Entra SSO no local credential is ever stored; the account is
+    # pre-provisioned (e.g. to grant section access before first sign-in)
+    # and authentication happens exclusively against Entra ID.
     user = User(
         email=payload.email.lower(),
         full_name=payload.full_name,
         role=_ensure_role(payload.role),
         is_active=True,
-        password_hash=hash_password(payload.temporary_password),
+        password_hash=SSO_PASSWORD_PLACEHOLDER if settings.is_entra_auth else hash_password(payload.temporary_password),
     )
     db.add(user)
     db.flush()
@@ -295,6 +301,11 @@ async def reset_password(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ) -> User:
+    if settings.is_entra_auth:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Passwords are managed by Microsoft Entra ID. Local password resets are disabled.",
+        )
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

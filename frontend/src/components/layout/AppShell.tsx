@@ -83,6 +83,14 @@ const navSections: NavSection[] = [
   }
 ];
 
+// AppShell is rendered per-page (via ProtectedPage), so it remounts on every
+// client-side navigation. This module-level cache survives those remounts so
+// the notification unread-count is fetched at most once per interval no matter
+// how often the user navigates, rather than on every page change.
+const UNREAD_POLL_MS = 60000;
+let unreadCache = { count: 0, fetchedAt: 0 };
+let unreadInFlight = false;
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -109,13 +117,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!token) {
+      unreadCache = { count: 0, fetchedAt: 0 };
       setUnreadNotifications(0);
       return;
     }
-    apiRequest<{ unread_count: number }>("/api/v1/notifications/unread-count")
-      .then((response) => setUnreadNotifications(response.unread_count))
-      .catch(() => undefined);
-  }, [pathname, token]);
+    // Show whatever is cached immediately, then hit the network only when the
+    // cached value is older than the poll interval. Because the cache lives at
+    // module scope, navigating between pages reuses it instead of refetching.
+    let active = true;
+    setUnreadNotifications(unreadCache.count);
+    const maybeRefresh = () => {
+      if (unreadInFlight || Date.now() - unreadCache.fetchedAt < UNREAD_POLL_MS) {
+        return;
+      }
+      unreadInFlight = true;
+      apiRequest<{ unread_count: number }>("/api/v1/notifications/unread-count")
+        .then((response) => {
+          unreadCache = { count: response.unread_count, fetchedAt: Date.now() };
+          if (active) setUnreadNotifications(response.unread_count);
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          unreadInFlight = false;
+        });
+    };
+    maybeRefresh();
+    const interval = window.setInterval(maybeRefresh, UNREAD_POLL_MS);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [token]);
 
   useEffect(() => {
     if (!token) {

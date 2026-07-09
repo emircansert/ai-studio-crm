@@ -85,12 +85,17 @@ def match_section_for_path(path: str) -> SectionDefinition | None:
     return None
 
 
+def user_upn(user: User) -> str:
+    """The permission key for a user: their UPN (email under local auth)."""
+    return (user.email or "").strip().lower()
+
+
 def resolve_user_section_access(db: Session, user: User, section_key: str) -> str:
     if section_key not in SECTION_BY_KEY:
         return ACCESS_HIDDEN
     access = db.execute(
         select(UserSectionAccess.access_level).where(
-            UserSectionAccess.user_id == user.id,
+            UserSectionAccess.user_upn == user_upn(user),
             UserSectionAccess.section_key == section_key,
         )
     ).scalar_one_or_none()
@@ -99,7 +104,9 @@ def resolve_user_section_access(db: Session, user: User, section_key: str) -> st
 
 def get_user_section_access_map(db: Session, user: User) -> dict[str, str]:
     rows = db.execute(
-        select(UserSectionAccess.section_key, UserSectionAccess.access_level).where(UserSectionAccess.user_id == user.id)
+        select(UserSectionAccess.section_key, UserSectionAccess.access_level).where(
+            UserSectionAccess.user_upn == user_upn(user)
+        )
     ).all()
     explicit = {section_key: normalize_access_level(access_level) for section_key, access_level in rows}
     fallback = default_access_for_user(user)
@@ -117,7 +124,7 @@ def default_access_rows_for_user(user: User, *, granted_by_user_id: object | Non
     level = default_access_for_user(user)
     return (
         UserSectionAccess(
-            user_id=user.id,
+            user_upn=user_upn(user),
             section_key=section.key,
             access_level=level,
             granted_by_user_id=granted_by_user_id,

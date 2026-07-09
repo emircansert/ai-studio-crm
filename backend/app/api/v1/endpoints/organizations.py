@@ -2,6 +2,7 @@ import re
 import unicodedata
 import csv
 import hashlib
+from collections import defaultdict
 from io import StringIO
 from pathlib import Path
 from datetime import date, datetime, time, timezone
@@ -221,6 +222,169 @@ def _summary(db: Session, org: Organization) -> dict[str, Any]:
         "deck_count": document_count,
         "open_follow_up_count": open_follow_up_count,
     }
+
+
+def _summaries_batch(db: Session, orgs: list[Organization]) -> list[dict[str, Any]]:
+    """Batched equivalent of ``[_summary(db, org) for org in orgs]``.
+
+    Produces byte-identical per-org dicts to ``_summary`` but replaces the
+    ~12 subqueries-per-row with a fixed handful of grouped/IN queries across
+    the whole page, so latency no longer scales with the number of rows.
+    """
+    if not orgs:
+        return []
+    org_ids = [org.id for org in orgs]
+
+    def _grouped_counts(key_column: Any, *conditions: Any) -> dict[UUID, int]:
+        rows = db.execute(
+            select(key_column, func.count())
+            .where(key_column.in_(org_ids), *conditions)
+            .group_by(key_column)
+        ).all()
+        return {key: int(count) for key, count in rows}
+
+    contact_counts = _grouped_counts(Contact.organization_id, not_archived(Contact.is_archived))
+    opportunity_counts = _grouped_counts(Opportunity.organization_id, not_archived(Opportunity.is_archived))
+    document_counts = _grouped_counts(OrganizationDocument.organization_id, not_archived(OrganizationDocument.is_archived))
+    note_counts = _grouped_counts(
+        Note.entity_id, Note.entity_type == "ORGANIZATION", not_archived(Note.is_archived)
+    )
+    open_follow_up_counts = _grouped_counts(
+        FollowUpAction.entity_id,
+        FollowUpAction.entity_type == "ORGANIZATION",
+        FollowUpAction.status == "OPEN",
+        not_archived(FollowUpAction.is_archived),
+    )
+
+    # Borusan fits (one query, grouped in Python; same per-org order as _fits).
+    fits_by_org: dict[UUID, list[dict[str, Any]]] = defaultdict(list)
+    for fit, company in db.execute(
+        select(OrganizationBorusanFit, BorusanCompany)
+        .join(BorusanCompany, BorusanCompany.id == OrganizationBorusanFit.borusan_company_id)
+        .where(OrganizationBorusanFit.organization_id.in_(org_ids), not_archived(OrganizationBorusanFit.is_archived))
+        .order_by(OrganizationBorusanFit.organization_id.asc(), BorusanCompany.code.asc())
+    ).all():
+        fits_by_org[fit.organization_id].append(
+            {
+                "id": fit.id,
+                "borusan_company_id": company.id,
+                "borusan_company_code": company.code,
+                "borusan_company_name": company.english_name or company.name,
+                "fit_level": fit.fit_level,
+                "fit_reason": fit.fit_reason,
+                "source": fit.source,
+                "raw_value": fit.raw_value,
+                "is_archived": fit.is_archived,
+            }
+        )
+
+    # Tags (one query; same per-org order as _tags).
+    tags_by_org: dict[UUID, list[dict[str, Any]]] = defaultdict(list)
+    for tag, org_tag in db.execute(
+        select(Tag, OrganizationTag)
+        .join(OrganizationTag, OrganizationTag.tag_id == Tag.id)
+        .where(OrganizationTag.organization_id.in_(org_ids))
+        .order_by(OrganizationTag.organization_id.asc(), Tag.tag_group.asc(), Tag.label.asc())
+    ).all():
+        tags_by_org[org_tag.organization_id].append(
+            {"id": tag.id, "code": tag.code, "label": tag.label, "tag_group": tag.tag_group, "source": org_tag.source}
+        )
+
+    # Primary contact per org: first row in the same ordering as the per-row query.
+    primary_contact_by_org: dict[UUID, Contact] = {}
+    for contact in db.execute(
+        select(Contact)
+        .where(Contact.organization_id.in_(org_ids), not_archived(Contact.is_archived))
+        .order_by(Contact.organization_id.asc(), Contact.full_name.asc(), Contact.email.asc(), Contact.id.asc())
+    ).scalars().all():
+        primary_contact_by_org.setdefault(contact.organization_id, contact)
+
+    # Latest note per org: first row when ordered newest-first within each org.
+    latest_note_by_org: dict[UUID, Note] = {}
+    for note in db.execute(
+        select(Note)
+        .where(Note.entity_type == "ORGANIZATION", Note.entity_id.in_(org_ids), not_archived(Note.is_archived))
+        .order_by(Note.entity_id.asc(), Note.occurred_at.desc(), Note.created_at.desc(), Note.id.desc())
+    ).scalars().all():
+        latest_note_by_org.setdefault(note.entity_id, note)
+
+    # Users referenced by created_by/updated_by (one query).
+    user_ids = {org.created_by_user_id for org in orgs if org.created_by_user_id}
+    user_ids |= {org.updated_by_user_id for org in orgs if org.updated_by_user_id}
+    users_by_id: dict[UUID, dict[str, Any]] = {}
+    if user_ids:
+        for user in db.execute(select(User).where(User.id.in_(user_ids))).scalars().all():
+            users_by_id[user.id] = {"id": user.id, "full_name": user.full_name, "email": user.email}
+
+    def user_payload(user_id: UUID | None) -> dict[str, Any] | None:
+        if not user_id:
+            return None
+        return users_by_id.get(user_id) or {"id": user_id, "full_name": None, "email": None}
+
+    # Lifecycle/relationship statuses (one query) to avoid per-row lazy loads.
+    status_ids = {org.lifecycle_status_id for org in orgs if org.lifecycle_status_id}
+    status_ids |= {org.relationship_status_id for org in orgs if org.relationship_status_id}
+    statuses_by_id: dict[UUID, Status] = {}
+    if status_ids:
+        for status_obj in db.execute(select(Status).where(Status.id.in_(status_ids))).scalars().all():
+            statuses_by_id[status_obj.id] = status_obj
+
+    results: list[dict[str, Any]] = []
+    for org in orgs:
+        created_by_user = user_payload(org.created_by_user_id)
+        updated_by_user = user_payload(org.updated_by_user_id)
+        tags = tags_by_org.get(org.id, [])
+        latest_note = latest_note_by_org.get(org.id)
+        primary_contact = primary_contact_by_org.get(org.id)
+        expertise_text = org.solution_summary or org.vertical_text or ", ".join(tag["label"] for tag in tags[:4])
+        results.append(
+            {
+                "id": org.id,
+                "name": org.name,
+                "normalized_name": org.normalized_name,
+                "organization_type": org.organization_type,
+                "organization_subtype": org.organization_subtype,
+                "category_code": org.category_code,
+                "category_label": org.category_label,
+                "category": {"code": org.category_code, "label": org.category_label} if org.category_code or org.category_label else None,
+                "vertical_text": org.vertical_text,
+                "website_url": org.website_url,
+                "website_domain": org.website_domain,
+                "geography_text": org.geography_text,
+                "source_text": org.source_text,
+                "added_by_text": org.added_by_text,
+                "solution_summary": org.solution_summary,
+                "lifecycle_status": _status_payload(statuses_by_id.get(org.lifecycle_status_id)),
+                "relationship_status": _status_payload(statuses_by_id.get(org.relationship_status_id)),
+                "lifecycle_status_id": org.lifecycle_status_id,
+                "relationship_status_id": org.relationship_status_id,
+                "last_contact_date": org.last_contact_date,
+                "raw_import_ref": org.raw_import_ref,
+                "created_by_user_id": org.created_by_user_id,
+                "updated_by_user_id": org.updated_by_user_id,
+                "created_by_user": created_by_user,
+                "updated_by_user": updated_by_user,
+                "added_by_display": created_by_user["full_name"] if created_by_user else org.added_by_text,
+                "added_at": org.created_at,
+                "is_archived": org.is_archived,
+                "archived_at": org.archived_at,
+                "archived_by_user_id": org.archived_by_user_id,
+                "archive_reason": org.archive_reason,
+                "created_at": org.created_at,
+                "updated_at": org.updated_at,
+                "borusan_fit_summary": fits_by_org.get(org.id, []),
+                "tags_summary": tags,
+                "expertise_text": expertise_text,
+                "primary_contact": ContactRead.model_validate(primary_contact).model_dump(mode="json") if primary_contact else None,
+                "notes_preview": latest_note.body if latest_note else None,
+                "contact_count": contact_counts.get(org.id, 0),
+                "note_count": note_counts.get(org.id, 0),
+                "opportunity_count": opportunity_counts.get(org.id, 0),
+                "deck_count": document_counts.get(org.id, 0),
+                "open_follow_up_count": open_follow_up_counts.get(org.id, 0),
+            }
+        )
+    return results
 
 
 def _detail(db: Session, org: Organization) -> dict[str, Any]:
@@ -479,7 +643,7 @@ async def list_organizations(
     total_count = int(db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one())
     result = db.execute(_ordered(stmt, sort_by).offset(skip).limit(limit))
     return {
-        "items": [_summary(db, org) for org in result.scalars().all()],
+        "items": _summaries_batch(db, list(result.scalars().all())),
         "total_count": total_count,
         "limit": limit,
         "offset": skip,

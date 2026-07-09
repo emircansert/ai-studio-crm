@@ -1,12 +1,8 @@
-from uuid import UUID
-
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import decode_access_token
+from app.core.identity import IdentityError, resolve_user_from_token
 from app.db.session import get_db
 from app.models import User
 
@@ -14,6 +10,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
@@ -23,26 +20,23 @@ async def get_current_user(
             detail="Not authenticated",
         )
 
-    try:
-        payload = decode_access_token(credentials.credentials)
-        subject = payload.get("sub")
-        if subject is None:
-            raise JWTError("Missing subject")
-        user_id = UUID(subject)
-    except (JWTError, ValueError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token",
-        ) from exc
+    # The section-access middleware already resolved and validated the same
+    # bearer token for section-gated paths. Reuse that result instead of
+    # querying for the user a second time. merge(load=False) binds the
+    # already-loaded instance to this request's session without a SELECT, so
+    # downstream mutation paths (e.g. db.add(current_user)) still work.
+    cached_user = getattr(request.state, "section_user", None)
+    cached_token = getattr(request.state, "section_user_token", None)
+    if cached_user is not None and cached_token == credentials.credentials:
+        return db.merge(cached_user, load=False)
 
-    result = db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if user is None or not user.is_active:
+    try:
+        return resolve_user_from_token(db, credentials.credentials)
+    except IdentityError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive or missing user",
-        )
-    return user
+            detail=exc.message,
+        ) from exc
 
 
 async def require_admin(current_user: User = Depends(get_current_user)) -> User:

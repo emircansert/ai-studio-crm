@@ -22,19 +22,22 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 
 class UserSectionAccess(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Per-user, per-section access level.
+
+    Keyed by the user's UPN (User Principal Name, as issued by Microsoft Entra
+    ID) rather than the internal user id, so access can be granted before a
+    user's first SSO sign-in and survives identity re-provisioning. In local
+    auth mode the user's lower-cased email doubles as the UPN.
+    """
+
     __tablename__ = "user_section_access"
     __table_args__ = (
-        UniqueConstraint("user_id", "section_key", name="uq_user_section_access_user_section"),
+        UniqueConstraint("user_upn", "section_key", name="uq_user_section_access_upn_section"),
     )
 
-    user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id"),
-        index=True,
-        nullable=False,
-    )
+    user_upn: Mapped[str] = mapped_column(String(320), index=True, nullable=False)
     section_key: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
     access_level: Mapped[str] = mapped_column(String(20), nullable=False, default="HIDDEN")
     granted_by_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), index=True)
 
-    user = relationship("User", foreign_keys=[user_id])
     granted_by = relationship("User", foreign_keys=[granted_by_user_id])

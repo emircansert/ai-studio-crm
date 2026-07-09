@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { authMode, login, loginWithMicrosoft } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +22,18 @@ export default function LoginPage() {
       await login(email, password);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Login failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleMicrosoftSignIn() {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await loginWithMicrosoft();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Microsoft sign-in failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -56,32 +68,45 @@ export default function LoginPage() {
           <LockKeyhole size={22} />
         </div>
         <h2>Sign in</h2>
-        <p>Use your Borusan AI Studio CRM account.</p>
-        <form className="form-stack" onSubmit={handleSubmit}>
-          <Input
-            autoComplete="email"
-            label="Email"
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="admin@example.com"
-            required
-            type="email"
-            value={email}
-          />
-          <Input
-            autoComplete="current-password"
-            label="Password"
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter password"
-            required
-            type="password"
-            value={password}
-          />
-          {error ? <div className="alert alert--error">{error}</div> : null}
-          <Button disabled={isSubmitting} type="submit">
-            {isSubmitting ? "Signing in..." : "Sign in"}
-            <ArrowRight size={17} />
-          </Button>
-        </form>
+        {authMode === "entra" ? (
+          <>
+            <p>Sign in with your Borusan Microsoft account.</p>
+            {error ? <div className="alert alert--error">{error}</div> : null}
+            <Button disabled={isSubmitting} onClick={() => void handleMicrosoftSignIn()} type="button">
+              {isSubmitting ? "Signing in..." : "Sign in with Microsoft"}
+              <ArrowRight size={17} />
+            </Button>
+          </>
+        ) : (
+          <>
+            <p>Use your Borusan AI Studio CRM account.</p>
+            <form className="form-stack" onSubmit={handleSubmit}>
+              <Input
+                autoComplete="email"
+                label="Email"
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="admin@example.com"
+                required
+                type="email"
+                value={email}
+              />
+              <Input
+                autoComplete="current-password"
+                label="Password"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter password"
+                required
+                type="password"
+                value={password}
+              />
+              {error ? <div className="alert alert--error">{error}</div> : null}
+              <Button disabled={isSubmitting} type="submit">
+                {isSubmitting ? "Signing in..." : "Sign in"}
+                <ArrowRight size={17} />
+              </Button>
+            </form>
+          </>
+        )}
       </section>
     </main>
   );

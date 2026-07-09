@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.security import create_access_token, verify_password
 from app.db.session import get_db
 from app.models import User
@@ -13,8 +15,23 @@ from app.schemas import LoginRequest, TokenResponse, UserRead
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+@router.get("/config")
+async def auth_config() -> dict[str, Any]:
+    """Public, non-sensitive auth configuration for the login page."""
+    return {
+        "auth_mode": "entra" if settings.is_entra_auth else "local",
+    }
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+    if settings.is_entra_auth:
+        # Local password login is disabled under Entra ID SSO. There is no
+        # password verification path in this mode at all.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Local password sign-in is disabled. Use Microsoft Entra ID single sign-on.",
+        )
     result = db.execute(select(User).where(User.email == payload.email.lower()))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(payload.password, user.password_hash):

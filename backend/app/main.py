@@ -1,20 +1,17 @@
 import logging
 import time
 import traceback
-from uuid import UUID
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from jose import JWTError
-from sqlalchemy import select, true
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.security import decode_access_token
+from app.core.identity import IdentityError, resolve_user_from_token
 from app.core.section_access import (
     access_allows,
     match_section_for_path,
@@ -22,7 +19,6 @@ from app.core.section_access import (
     resolve_user_section_access,
 )
 from app.db.session import SessionLocal
-from app.models import User
 
 logger = logging.getLogger("borusan_crm.api")
 
@@ -43,10 +39,17 @@ def _error_payload(
 
 
 def create_app() -> FastAPI:
+    # API docs (Swagger / ReDoc / OpenAPI JSON) are exposed only in explicit
+    # development environments. Fail closed: a missing or unrecognised
+    # ENVIRONMENT value disables them entirely (the routes return 404).
+    docs_enabled = settings.is_development
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
         description="Foundation API for the Borusan AI Studio CRM.",
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
     )
 
     app.add_middleware(
@@ -118,34 +121,27 @@ def create_app() -> FastAPI:
                 ),
             )
 
-        try:
-            payload = decode_access_token(auth_header.split(" ", 1)[1].strip())
-            subject = payload.get("sub")
-            if subject is None:
-                raise JWTError("Missing subject")
-            user_id = UUID(subject)
-        except (JWTError, ValueError):
-            return JSONResponse(
-                status_code=401,
-                content=_error_payload(
-                    error_code="INVALID_TOKEN",
-                    message="Invalid authentication token.",
-                    request_id=request_id,
-                ),
-            )
-
+        token = auth_header.split(" ", 1)[1].strip()
         with SessionLocal() as db:
-            user = db.execute(select(User).where(User.id == user_id, User.is_active == true())).scalar_one_or_none()
-            if user is None:
+            try:
+                # Shared resolver: identical identity semantics to get_current_user
+                # in both local and Entra auth modes.
+                user = resolve_user_from_token(db, token)
+            except IdentityError as exc:
                 return JSONResponse(
                     status_code=401,
                     content=_error_payload(
-                        error_code="INACTIVE_OR_MISSING_USER",
-                        message="Inactive or missing user.",
+                        error_code=exc.error_code,
+                        message=exc.message,
                         request_id=request_id,
                     ),
                 )
             access_level = resolve_user_section_access(db, user, section.key)
+
+        # Hand the already-validated user to get_current_user so it does not
+        # re-query for the same identity on this request (see app.api.deps).
+        request.state.section_user = user
+        request.state.section_user_token = token
 
         required_level = required_access_for_method(request.method)
         if not access_allows(access_level, required_level):
