@@ -66,16 +66,21 @@ npm run dev
 
 ## Required Test Users
 
-Create dedicated scan accounts before testing:
+Sign-in is Microsoft Entra ID only; there is no username/password login to
+script. Create dedicated **Entra test accounts** in the tenant, sign in with
+each interactively, and use the ID token the browser sends as the bearer:
 
-- ADMIN test account: `<admin_test_email>` / `<admin_test_password>`
-- USER test account: `<user_test_email>` / `<user_test_password>`
+- ADMIN test account: `<admin_test_upn>`
+- USER test account: `<user_test_upn>`
 
-Do not place real credentials in this folder.
+Set the CRM role for each in **User Management**. Tokens expire in roughly 60
+minutes and must be refreshed during long scans. Do not place real credentials
+or real tokens in this folder.
 
 ## Known Caveats
 
-- The current system uses local JWT authentication, not Microsoft Entra ID.
+- Authentication is Microsoft Entra ID SSO only. The frontend is an MSAL public client (SPA platform, PKCE, **no client secret**) and sends the OIDC ID token as the API bearer; the backend validates it against Microsoft's public JWKS. There is no local login endpoint and the database stores no credential material.
+- There is deliberately no break-glass account: an Entra tenant outage locks everyone out, administrators included.
 - XML is not used.
 - No external AI/LLM APIs are integrated.
 - Admin scan actions can mutate data.

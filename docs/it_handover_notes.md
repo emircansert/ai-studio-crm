@@ -1,5 +1,13 @@
 # IT Handover Notes
 
+> **⚠️ Deploying? `alembic upgrade head` MUST be run against the production
+> database.** Local password authentication has been removed from the code, but
+> the `password_hash` column and its bcrypt hashes stay physically present in
+> production until migration
+> `backend/alembic/versions/20260726_0020_drop_local_password_hash.py` runs.
+> It is a one-way migration that destroys the hash data irreversibly — back up
+> the database first. Full procedure: [DEPLOYMENT.md](../DEPLOYMENT.md).
+
 ## Current Local Architecture
 
 The CRM is a local-first MVP with three main components:
@@ -71,17 +79,40 @@ The API boundary is already separated enough to migrate storage later.
 
 ## Authentication Model
 
-Current:
+Microsoft Entra ID single sign-on is the **only** authentication method:
 
-- Local JWT login.
-- Password hashes stored in SQL Server.
+- The frontend signs in with MSAL as a public client (SPA platform, PKCE,
+  **no client secret**) and sends the OIDC ID token as the API bearer.
+- The backend validates the RS256 signature against Microsoft's public JWKS and
+  checks issuer, tenant (`tid`), audience, and expiry.
+- The application stores **no passwords or credential material of any kind**.
+  There is no login endpoint, no password reset, and no `password_hash` column
+  (dropped in migration `20260726_0020`).
+- `users` holds only the Entra UPN (`email`), display name, role, active flag,
+  and last-login timestamp. CRM user ids stay stable, so audit logs and
+  leaderboard contributions survive identity changes.
+- Users are provisioned just-in-time on first sign-in as `USER` with every
+  controlled section `HIDDEN`. Roles and section access are managed in the CRM
+  at `/admin/users`, not in Entra.
 - Roles: `ADMIN`, `USER`.
 
-Future:
+Required configuration: `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and
+`ENTRA_ADMIN_UPNS` on the backend; `NEXT_PUBLIC_ENTRA_TENANT_ID`,
+`NEXT_PUBLIC_ENTRA_CLIENT_ID`, and `NEXT_PUBLIC_ENTRA_REDIRECT_URI` baked into
+the frontend build. See `docs/auth_entra_id_setup.md`.
 
-- Microsoft Entra ID SSO.
-- Map Entra users/groups into CRM `users`.
-- Keep CRM user ids stable for audit logs and leaderboard contributions.
+### Admin recovery (operators: read this before you need it)
+
+There is no break-glass account by design. If no CRM administrator can sign in,
+add their Entra UPN to `ENTRA_ADMIN_UPNS` in `backend/.env`, restart the
+backend, and have them sign in again — the list is re-evaluated on every
+sign-in, so they are promoted to `ADMIN` immediately. Full procedure, including
+the tenant-outage case and the last-resort SQL fallback, is in the README under
+**"Locked Out? Admin Recovery Procedure"**.
+
+An Entra or tenant-wide outage makes the CRM inaccessible to everyone,
+administrators included. This is the accepted consequence of holding no internal
+user credentials; the same outage takes out Microsoft 365 generally.
 
 ## Admin/User Roles
 
@@ -159,15 +190,24 @@ Admin/ops:
 - Internal SQL Server for corporate network deployment.
 - Azure SQL for cloud deployment.
 
-## Microsoft Entra ID Integration Path
+## Microsoft Entra ID Integration Status
 
-Recommended future path:
+**Complete.** Entra ID SSO is implemented and is the only authentication method;
+see the Authentication Model section above and `docs/auth_entra_id_setup.md`.
 
-1. Add an auth provider abstraction around current JWT dependency.
-2. Validate Entra access tokens server-side.
-3. Map token identity to CRM `users`.
-4. Map Entra groups to CRM roles.
-5. Keep local admin fallback only for break-glass/local development if approved.
+Local password login was removed entirely (not merely disabled) and the
+`password_hash` column was dropped, per the Information Security requirement
+that the application work exclusively through Entra users and hold no internal
+user information. **A local admin fallback was deliberately not kept** — the
+availability trade-off is documented in `docs/auth_entra_id_setup.md` under
+"Availability risk to accept explicitly".
+
+Remaining optional work, none of it required to operate the system:
+
+1. Map Entra **groups** to CRM roles (today roles are managed per user in the
+   CRM, which keeps the CRM the source of truth for authorization).
+2. Review browser `localStorage` token storage if Information Security requires
+   HttpOnly session cookies.
 
 ## Security Review Items
 

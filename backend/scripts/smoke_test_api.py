@@ -7,8 +7,10 @@ from urllib import error, request
 
 
 API_BASE_URL = os.getenv("SMOKE_API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
-ADMIN_EMAIL = os.getenv("SMOKE_ADMIN_EMAIL") or os.getenv("INITIAL_ADMIN_EMAIL")
-ADMIN_PASSWORD = os.getenv("SMOKE_ADMIN_PASSWORD") or os.getenv("INITIAL_ADMIN_PASSWORD")
+# Authentication is Microsoft Entra ID only, so this script cannot mint its own
+# token. Supply a current Entra ID token for an ADMIN user, e.g. copied from the
+# signed-in browser session (sessionStorage / the Authorization header).
+BEARER_TOKEN = os.getenv("SMOKE_BEARER_TOKEN", "").strip()
 VERBOSE = os.getenv("SMOKE_VERBOSE") == "1"
 
 
@@ -84,12 +86,12 @@ def check(name: str, fn) -> tuple[bool, Any]:
 
 
 def main() -> int:
-    if not ADMIN_EMAIL or not ADMIN_PASSWORD:
-        print("FAIL config: set SMOKE_ADMIN_EMAIL/SMOKE_ADMIN_PASSWORD or INITIAL_ADMIN_EMAIL/INITIAL_ADMIN_PASSWORD")
+    if not BEARER_TOKEN:
+        print("FAIL config: set SMOKE_BEARER_TOKEN to a current Entra ID token for an ADMIN user.")
+        print("  Sign in to the CRM, then copy the bearer token the browser sends to /api/backend.")
         return 2
 
     results: list[bool] = []
-    token_holder: dict[str, str] = {}
     user_holder: dict[str, Any] = {}
     organization_holder: dict[str, Any] = {}
 
@@ -104,21 +106,13 @@ def main() -> int:
         print(f"FAIL readiness status: unexpected payload {readiness}")
         results.append(False)
 
-    login_body = record(
-        "login",
-        lambda: call(
-            "/api/v1/auth/login",
-            method="POST",
-            payload={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
-        ),
-    )
-    if not login_body:
+    token = BEARER_TOKEN
+    me_body = record("whoami (auth/me)", lambda: call("/api/v1/auth/me", token=token))
+    if not me_body:
+        print("  The token is missing, expired, or not accepted. Sign in again and re-copy it.")
         print(f"\nSmoke test summary: {sum(results)}/{len(results)} checks passed against {API_BASE_URL}")
         return 1
-    token_holder["token"] = login_body["access_token"]
-    user_holder["user"] = login_body.get("user") or {}
-
-    token = token_holder["token"]
+    user_holder["user"] = me_body
     record("my section access", lambda: call("/api/v1/users/me/section-access", token=token))
     record("dashboard summary", lambda: call("/api/v1/dashboard/summary", token=token))
     record("active users", lambda: call("/api/v1/users/active?limit=500", token=token))

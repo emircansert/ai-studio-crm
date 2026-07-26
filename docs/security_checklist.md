@@ -4,20 +4,20 @@ This checklist is for local MVP review and future corporate deployment readiness
 
 ## Authentication
 
-- [ ] Local JWT auth is acceptable for MVP/demo only.
-- [ ] `JWT_SECRET_KEY` is long, random, and environment-specific.
-- [ ] Token expiry is configured appropriately.
-- [ ] Inactive users cannot log in.
+- [ ] Microsoft Entra ID SSO is the only sign-in path; no local login exists.
+- [ ] `ENTRA_TENANT_ID` / `ENTRA_CLIENT_ID` match the app registration.
+- [ ] Token signature, issuer, tenant (`tid`), audience, and expiry are all validated.
+- [ ] Tokens from other tenants and Microsoft Graph access tokens are rejected.
+- [ ] Inactive users are rejected even with a valid Entra token.
 - [ ] Frontend clears token on 401/403.
-- [ ] Future Microsoft Entra ID integration is planned before enterprise rollout.
+- [ ] `ENTRA_ADMIN_UPNS` is short, reviewed, and treated as privileged config.
 
-## Password Handling
+## Credential Handling
 
-- [ ] Passwords are hashed with backend security helpers.
-- [ ] Password hashes are never exposed through APIs.
-- [ ] Temporary passwords are communicated out of band.
-- [ ] Password reset events are audit logged.
-- [ ] Corporate deployment should review password policy or replace local auth with SSO.
+- [ ] No password or credential column exists on `users` (dropped in migration `20260726_0020`).
+- [ ] No client secret is configured, stored, or required anywhere.
+- [ ] No `/auth/login`, password-change, or password-reset endpoint exists.
+- [ ] Availability risk of the no-break-glass design is accepted in writing (see `docs/auth_entra_id_setup.md`).
 
 ## Role-Based Access
 
@@ -72,7 +72,7 @@ This checklist is for local MVP review and future corporate deployment readiness
 - [ ] `.env` is not committed.
 - [ ] Example secrets in `.env.example` are placeholders only.
 - [ ] Production secrets should live in a corporate secret store.
-- [ ] Local admin seed password must be changed after first setup.
+- [ ] The only backend secret is the database connection string; Entra tenant/client IDs are public OIDC metadata.
 
 ## Backup and Recovery
 
@@ -83,8 +83,8 @@ This checklist is for local MVP review and future corporate deployment readiness
 
 ## Corporate Deployment Review Items
 
-- [ ] Microsoft Entra ID SSO design.
-- [ ] Role mapping from Entra groups to CRM roles.
+- [ ] Microsoft Entra ID SSO runtime configuration and redirect URI verification.
+- [ ] CRM User Management remains the source of role mapping unless a future Entra group-mapping design is explicitly approved.
 - [ ] SQL Server/Azure SQL sizing and access model.
 - [ ] File storage target and retention.
 - [ ] Vulnerability/dependency scan.

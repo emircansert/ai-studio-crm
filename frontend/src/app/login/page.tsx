@@ -1,31 +1,15 @@
 "use client";
 
 import { ArrowRight, LockKeyhole, Sparkles } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
-  const { authMode, login, loginWithMicrosoft } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { loginWithMicrosoft } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      await login(email, password);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Login failed");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
 
   async function handleMicrosoftSignIn() {
     setError(null);
@@ -68,45 +52,15 @@ export default function LoginPage() {
           <LockKeyhole size={22} />
         </div>
         <h2>Sign in</h2>
-        {authMode === "entra" ? (
-          <>
-            <p>Sign in with your Borusan Microsoft account.</p>
-            {error ? <div className="alert alert--error">{error}</div> : null}
-            <Button disabled={isSubmitting} onClick={() => void handleMicrosoftSignIn()} type="button">
-              {isSubmitting ? "Signing in..." : "Sign in with Microsoft"}
-              <ArrowRight size={17} />
-            </Button>
-          </>
-        ) : (
-          <>
-            <p>Use your Borusan AI Studio CRM account.</p>
-            <form className="form-stack" onSubmit={handleSubmit}>
-              <Input
-                autoComplete="email"
-                label="Email"
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="admin@example.com"
-                required
-                type="email"
-                value={email}
-              />
-              <Input
-                autoComplete="current-password"
-                label="Password"
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter password"
-                required
-                type="password"
-                value={password}
-              />
-              {error ? <div className="alert alert--error">{error}</div> : null}
-              <Button disabled={isSubmitting} type="submit">
-                {isSubmitting ? "Signing in..." : "Sign in"}
-                <ArrowRight size={17} />
-              </Button>
-            </form>
-          </>
-        )}
+        <p>Sign in with your Borusan Microsoft account.</p>
+        {error ? <div className="alert alert--error">{error}</div> : null}
+        <Button disabled={isSubmitting} onClick={() => void handleMicrosoftSignIn()} type="button">
+          {isSubmitting ? "Signing in..." : "Sign in with Microsoft"}
+          <ArrowRight size={17} />
+        </Button>
+        <p className="login-note">
+          Access is managed entirely through Microsoft Entra ID. The CRM stores no passwords.
+        </p>
       </section>
     </main>
   );

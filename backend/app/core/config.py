@@ -13,16 +13,10 @@ class Settings(BaseSettings):
     # Deployment environment. Anything other than an explicit development value
     # is treated as production (fail closed) for things like API docs exposure.
     environment: str = Field(default="production", alias="ENVIRONMENT")
-    # AUTH_MODE selects the authentication backend:
-    #   "local" - legacy email/password with app-issued HS256 JWTs (development only).
-    #   "entra" - Microsoft Entra ID (Azure AD) OIDC bearer tokens; local passwords disabled.
-    auth_mode: str = Field(default="local", alias="AUTH_MODE")
-    jwt_secret_key: str = Field(default="change-me", alias="JWT_SECRET_KEY")
-    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
-    jwt_access_token_expire_minutes: int = Field(
-        default=30,
-        alias="JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
-    )
+    # Authentication is Microsoft Entra ID only. AUTH_MODE is retained purely so
+    # that an existing deployment setting does not break start-up; the only
+    # supported value is "entra" and no other mode exists in the code.
+    auth_mode: str = Field(default="entra", alias="AUTH_MODE")
     # Microsoft Entra ID (Azure AD) settings; required when AUTH_MODE=entra.
     entra_tenant_id: str = Field(default="", alias="ENTRA_TENANT_ID")
     entra_client_id: str = Field(default="", alias="ENTRA_CLIENT_ID")
@@ -53,10 +47,6 @@ class Settings(BaseSettings):
         return self.environment.strip().lower() in {"development", "dev", "local"}
 
     @property
-    def is_entra_auth(self) -> bool:
-        return self.auth_mode.strip().lower() == "entra"
-
-    @property
     def entra_issuer(self) -> str:
         if self.entra_issuer_override:
             return self.entra_issuer_override
@@ -70,11 +60,18 @@ class Settings(BaseSettings):
 
     @property
     def entra_audiences(self) -> list[str]:
+        """Audience(s) accepted on incoming Entra tokens.
+
+        Sign-in uses standard delegated Graph scopes and the OIDC ID token,
+        whose audience is the bare client id. The app registration exposes no
+        custom API, so an "api://<client-id>" audience can never be issued and
+        is deliberately not accepted.
+        """
         if self.entra_audience_raw.strip():
             return [item.strip() for item in self.entra_audience_raw.split(",") if item.strip()]
         if not self.entra_client_id:
             return []
-        return [f"api://{self.entra_client_id}", self.entra_client_id]
+        return [self.entra_client_id]
 
     @property
     def entra_admin_upns(self) -> set[str]:

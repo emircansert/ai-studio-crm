@@ -8,7 +8,7 @@ Use this checklist before demos, handover, or larger internal testing.
 - [ ] Database `BorusanAIEcosystemCRM` exists.
 - [ ] ODBC Driver 17 or 18 is installed.
 - [ ] `DATABASE_URL` points to the intended database.
-- [ ] `JWT_SECRET_KEY` is not the example value.
+- [ ] `ENTRA_TENANT_ID` / `ENTRA_CLIENT_ID` are set and match the frontend `NEXT_PUBLIC_ENTRA_*` values.
 - [ ] Backend starts without errors.
 - [ ] Frontend starts without errors.
 - [ ] `/api/v1/health` returns `ok`.
@@ -34,10 +34,12 @@ Use this checklist before demos, handover, or larger internal testing.
 
 - [ ] Admin can list users.
 - [ ] Admin can search users.
-- [ ] Admin can create user with temporary password.
+- [ ] Admin can pre-provision a user by Entra UPN (no credential is set).
+- [ ] A new user is created automatically on first sign-in as USER with all controlled sections HIDDEN.
 - [ ] Admin can edit full name/email/role/status.
 - [ ] Admin can activate/deactivate user.
-- [ ] Admin can reset password.
+- [ ] Admin can set per-section access (HIDDEN / VIEW / FULL) and it takes effect.
+- [ ] No password field appears anywhere in User Management.
 - [ ] System prevents deactivating/downgrading the only active admin.
 - [ ] User management actions appear in audit logs.
 

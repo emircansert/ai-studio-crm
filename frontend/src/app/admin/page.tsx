@@ -25,7 +25,7 @@ export default function AdminPage() {
         <SectionCard>
           <div className="section-heading">
             <h2>User management</h2>
-            <p>Create local users, manage roles, deactivate accounts, and reset temporary passwords.</p>
+            <p>Manage roles and section access for Entra ID users, and deactivate accounts.</p>
           </div>
           <Link className="button button--secondary" href="/admin/users">
             Open users

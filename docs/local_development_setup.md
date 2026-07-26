@@ -39,13 +39,16 @@ DATABASE_URL=mssql+pyodbc://@localhost:1433/BorusanAIEcosystemCRM?driver=ODBC+Dr
 Important local variables:
 
 - `DATABASE_URL`
-- `JWT_SECRET_KEY`
-- `JWT_ALGORITHM`
-- `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`
+- `ENVIRONMENT`
 - `BACKEND_CORS_ORIGINS`
-- `INITIAL_ADMIN_EMAIL`
-- `INITIAL_ADMIN_PASSWORD`
-- `INITIAL_ADMIN_FULL_NAME`
+- `ENTRA_TENANT_ID`
+- `ENTRA_CLIENT_ID`
+- `ENTRA_ADMIN_UPNS`
+- `INITIAL_ADMIN_EMAIL` (optional; pre-creates an ADMIN row, no credential)
+- `INITIAL_ADMIN_FULL_NAME` (optional)
+
+Authentication is Microsoft Entra ID only, so there is no JWT signing secret and
+no password variable. See `docs/auth_entra_id_setup.md`.
 
 ## Test SQL Server Connection
 
@@ -82,11 +85,13 @@ alembic upgrade head
 Seed controlled vocabularies, Borusan companies, and an optional initial admin:
 
 ```powershell
-$env:INITIAL_ADMIN_EMAIL="admin@example.com"
-$env:INITIAL_ADMIN_PASSWORD="change-me-admin-password"
+$env:INITIAL_ADMIN_EMAIL="first.admin@borusan.com"   # must be their Entra UPN
 $env:INITIAL_ADMIN_FULL_NAME="Initial Admin"
 python -m app.db.seed
 ```
+
+The seeded admin has no password: they sign in through Entra ID like everyone
+else. Pre-creating the row only lets you set section access beforehand.
 
 Run the backend:
 

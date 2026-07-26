@@ -1,8 +1,18 @@
 """Microsoft Entra ID (Azure AD) bearer-token validation.
 
-The frontend acquires an access token via MSAL (authorization code + PKCE) and
-sends it as a Bearer token. This module validates that token as a resource
-server: RS256 signature against the tenant JWKS, plus issuer/audience/expiry.
+The app registration exposes no custom API, so the frontend signs in with the
+standard delegated scopes (openid/profile/email/User.Read) via MSAL
+(authorization code + PKCE) and sends the resulting **OIDC ID token** as the
+Bearer credential.
+
+This module validates that ID token: RS256 signature against the tenant JWKS,
+issuer, expiry, tenant (`tid`), and an audience equal to this application's
+client id. A Microsoft Graph access token is addressed to Graph, not to this
+application, so it fails the audience check and is correctly rejected.
+
+The `nonce` claim is validated by MSAL in the browser when it processes the
+authentication response; the backend receives the token later and cannot
+re-check it.
 
 No client secret is required for validation — only Microsoft's public keys.
 """
@@ -70,8 +80,19 @@ class EntraTokenValidator:
                     return key
         raise EntraAuthError("Signing key not found in tenant JWKS")
 
+    def _validate_tenant(self, claims: dict[str, Any]) -> None:
+        """Reject tokens minted by a tenant other than the configured one."""
+        expected_tenant = settings.entra_tenant_id.strip()
+        token_tenant = claims.get("tid")
+        if expected_tenant and token_tenant and token_tenant != expected_tenant:
+            raise EntraAuthError("Token was issued by an unexpected Microsoft tenant")
+
     def validate(self, token: str) -> dict[str, Any]:
-        """Return verified claims or raise EntraAuthError."""
+        """Validate an Entra ID token and return its verified claims.
+
+        Raises EntraAuthError on any failure (signature, issuer, audience,
+        expiry, or tenant mismatch).
+        """
         audiences = settings.entra_audiences
         if not audiences:
             raise EntraAuthError("ENTRA_CLIENT_ID / ENTRA_AUDIENCE is not configured")
@@ -80,7 +101,7 @@ class EntraTokenValidator:
         # python-jose validates a single audience per call; accept any configured one.
         for audience in audiences:
             try:
-                return jwt.decode(
+                claims = jwt.decode(
                     token,
                     key,
                     algorithms=["RS256"],
@@ -90,6 +111,9 @@ class EntraTokenValidator:
                 )
             except JWTError as exc:
                 last_error = exc
+                continue
+            self._validate_tenant(claims)
+            return claims
         raise EntraAuthError(f"Bearer token rejected: {last_error}") from last_error
 
 

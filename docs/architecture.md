@@ -162,7 +162,7 @@ Local MVP:
 - Local SQL Server database `BorusanAIEcosystemCRM`.
 - FastAPI backend run through a Python virtual environment.
 - Next.js frontend run directly with Node.js when frontend work resumes.
-- Local JWT auth.
+- Microsoft Entra ID SSO (the same as production; there is no local auth mode).
 - Local file or database-backed logo storage.
 
 Corporate deployment:

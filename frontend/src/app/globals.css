@@ -1714,6 +1714,10 @@ select.input:focus {
   padding: 28px;
 }
 
+.login-note {
+  font-size: 13px;
+}
+
 .lock-icon {
   display: grid;
   place-items: center;

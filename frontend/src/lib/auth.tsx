@@ -11,21 +11,22 @@ import {
 } from "react";
 
 import { apiRequest, clearStoredToken, getStoredToken, setStoredToken } from "@/lib/api";
-import { IS_ENTRA_AUTH, entraAcquireToken, entraSignIn, entraSignOut } from "@/lib/entraAuth";
-import type { LoginResponse, User } from "@/types/api";
+import { entraAcquireToken, entraSignIn, entraSignOut } from "@/lib/entraAuth";
+import type { User } from "@/types/api";
 
+/**
+ * Authentication is Microsoft Entra ID single sign-on only. The application
+ * holds no local credentials, so there is no password sign-in path here.
+ */
 type AuthContextValue = {
   token: string | null;
   user: User | null;
   isReady: boolean;
-  /** "entra" = Microsoft Entra ID SSO, "local" = development email/password. */
-  authMode: "entra" | "local";
-  login: (email: string, password: string) => Promise<void>;
   loginWithMicrosoft: () => Promise<void>;
   logout: () => void;
 };
 
-// Refresh the Entra access token well before its ~60 minute expiry.
+// Refresh the Entra ID token well before its ~60 minute expiry.
 const ENTRA_TOKEN_REFRESH_MS = 20 * 60 * 1000;
 
 const USER_KEY = "borusan_crm_user";
@@ -59,10 +60,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsReady(true);
   }, []);
 
-  // In Entra mode, silently refresh the access token so long-lived sessions
-  // do not start failing with 401s when the initial token expires.
+  // Silently refresh the ID token so long-lived sessions do not start failing
+  // with 401s when the initial token expires.
   useEffect(() => {
-    if (!IS_ENTRA_AUTH || !token) return;
+    if (!token) return;
     const timer = window.setInterval(() => {
       entraAcquireToken()
         .then((freshToken) => {
@@ -74,28 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(timer);
   }, [token]);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      if (IS_ENTRA_AUTH) {
-        throw new Error("Local password sign-in is disabled. Use Microsoft Entra ID single sign-on.");
-      }
-      const response = await apiRequest<LoginResponse>("/api/v1/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password })
-      });
-      setStoredToken(response.access_token);
-      window.localStorage.setItem(USER_KEY, JSON.stringify(response.user));
-      setToken(response.access_token);
-      setUser(response.user);
-      router.push("/dashboard");
-    },
-    [router]
-  );
-
   const loginWithMicrosoft = useCallback(async () => {
-    const accessToken = await entraSignIn();
-    setStoredToken(accessToken);
-    setToken(accessToken);
+    const idToken = await entraSignIn();
+    setStoredToken(idToken);
+    setToken(idToken);
     // The backend provisions/looks up the CRM user from the validated token;
     // /auth/me is the source of truth for role and profile.
     const profile = await apiRequest<User>("/api/v1/auth/me");
@@ -109,9 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.removeItem(USER_KEY);
     setToken(null);
     setUser(null);
-    if (IS_ENTRA_AUTH) {
-      void entraSignOut();
-    }
+    void entraSignOut();
     router.push("/login");
   }, [router]);
 
@@ -120,12 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token,
       user,
       isReady,
-      authMode: (IS_ENTRA_AUTH ? "entra" : "local") as "entra" | "local",
-      login,
       loginWithMicrosoft,
       logout
     }),
-    [isReady, login, loginWithMicrosoft, logout, token, user]
+    [isReady, loginWithMicrosoft, logout, token, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

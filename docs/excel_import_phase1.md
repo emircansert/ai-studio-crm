@@ -117,12 +117,14 @@ Batch-level warnings use `import_warnings.import_batch_id`. Row-level warnings a
    http://127.0.0.1:8000/docs
    ```
 
-3. Use `POST /api/v1/auth/login` to obtain an access token for an `ADMIN` user.
+3. Sign in to the CRM at `http://localhost:3000` as an `ADMIN` user and copy the
+   Entra ID token the browser sends as the `Authorization` bearer. (There is no
+   login endpoint: authentication is Microsoft Entra ID single sign-on only.)
 
 4. Click **Authorize** in Swagger and paste:
 
    ```text
-   Bearer <access_token>
+   Bearer <entra_id_token>
    ```
 
 5. Use `POST /api/v1/imports/upload` and upload:

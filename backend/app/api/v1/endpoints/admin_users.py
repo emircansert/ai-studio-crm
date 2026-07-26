@@ -5,9 +5,6 @@ from sqlalchemy import false, func, or_, select, true
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
-from app.core.config import settings
-from app.core.identity import SSO_PASSWORD_PLACEHOLDER
-from app.core.security import hash_password
 from app.core.section_access import (
     default_access_rows_for_user,
     get_user_section_access_map,
@@ -18,7 +15,6 @@ from app.db.session import get_db
 from app.models import User, UserSectionAccess
 from app.schemas import (
     AdminUserCreate,
-    AdminUserPasswordReset,
     AdminUserRoleUpdate,
     UserAccessMatrixResponse,
     UserRead,
@@ -172,15 +168,14 @@ async def create_user(
 ) -> User:
     if db.execute(select(User).where(User.email == payload.email.lower())).scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
-    # Under Entra SSO no local credential is ever stored; the account is
-    # pre-provisioned (e.g. to grant section access before first sign-in)
-    # and authentication happens exclusively against Entra ID.
+    # No local credential is ever stored. The account is pre-provisioned (e.g.
+    # to grant section access before first sign-in) and authentication happens
+    # exclusively against Microsoft Entra ID.
     user = User(
         email=payload.email.lower(),
         full_name=payload.full_name,
         role=_ensure_role(payload.role),
         is_active=True,
-        password_hash=SSO_PASSWORD_PLACEHOLDER if settings.is_entra_auth else hash_password(payload.temporary_password),
     )
     db.add(user)
     db.flush()
@@ -211,7 +206,7 @@ async def update_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     before = UserRead.model_validate(user).model_dump(mode="json")
-    data = payload.model_dump(exclude_unset=True, exclude={"password"})
+    data = payload.model_dump(exclude_unset=True)
     if "role" in data:
         data["role"] = _ensure_role(data["role"])
         _prevent_last_admin_loss(db, user, next_role=data["role"])
@@ -294,31 +289,3 @@ async def change_role(
     return user
 
 
-@router.patch("/{user_id}/reset-password", response_model=UserRead)
-async def reset_password(
-    user_id: UUID,
-    payload: AdminUserPasswordReset,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-) -> User:
-    if settings.is_entra_auth:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Passwords are managed by Microsoft Entra ID. Local password resets are disabled.",
-        )
-    user = db.get(User, user_id)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    user.password_hash = hash_password(payload.temporary_password)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    await write_audit_log(
-        db,
-        action="ADMIN_USER_PASSWORD_RESET",
-        entity_type="USER",
-        entity_id=user.id,
-        actor_user_id=current_user.id,
-        commit=True,
-    )
-    return user

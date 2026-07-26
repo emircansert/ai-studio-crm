@@ -11,9 +11,11 @@ from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "users"
 
+    # Authentication is Microsoft Entra ID only. The application deliberately
+    # stores no password or other local credential material: `email` holds the
+    # Entra UPN and is the sole identity key.
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="USER")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -21,12 +21,16 @@ SQL Server deletion policy: controlled/reference foreign keys use default `NO AC
 | Column | Type | Notes |
 | --- | --- | --- |
 | id | uuid PK | |
-| email | text unique | Lowercase. |
-| full_name | text | |
-| password_hash | text | Local MVP only. |
-| role | enum | `ADMIN`, `USER`. |
-| is_active | boolean | |
+| email | text unique | Lowercase. Holds the Microsoft Entra UPN and is the sole identity key. |
+| full_name | text | Display name from the Entra token. |
+| role | enum | `ADMIN`, `USER`. Managed in the CRM, not in Entra. |
+| is_active | boolean | Inactive users are rejected even with a valid Entra token. |
+| last_login_at | datetimeoffset | Refreshed on sign-in (throttled to 15 minutes). |
 | created_at / updated_at | datetimeoffset | |
+
+No credential column exists: authentication is Microsoft Entra ID only, and the
+`password_hash` column from the original MVP was dropped in migration
+`20260726_0020`.
 
 ### organizations
 

@@ -52,24 +52,30 @@ Confirmed from code:
 
 Current authentication:
 
-- Local username/password login.
-- JWT bearer token returned by `/api/v1/auth/login`.
-- JWT sent as `Authorization: Bearer <token>`.
-- Password hashes stored with bcrypt via `passlib`.
-- Roles: `ADMIN`, `USER`.
-- Inactive users cannot login.
-- `last_login_at` is updated on successful login.
+- Microsoft Entra ID single sign-on **only**. There is no local login endpoint.
+- The frontend signs in with MSAL as a public client (SPA platform, PKCE, no
+  client secret) and sends the resulting OIDC **ID token** as
+  `Authorization: Bearer <token>`.
+- The backend validates the RS256 signature against Microsoft's public JWKS and
+  checks issuer, tenant (`tid`), audience (the bare client id), and expiry.
+- The application stores **no passwords and no credential material of any kind**;
+  `users` holds only UPN, display name, role, active flag, and last login.
+- Users are provisioned just-in-time on first successful sign-in.
+- Roles: `ADMIN`, `USER`. Inactive users are rejected even with a valid token.
+- `last_login_at` is refreshed on sign-in (throttled to 15 minutes).
 
-Not implemented yet:
+Deliberately not implemented:
 
-- Microsoft Entra ID / SSO.
-- OIDC/SAML federation.
-- MFA enforcement by the application.
+- Any local/break-glass credential. An Entra tenant outage makes the CRM
+  inaccessible to everyone including administrators; this is an accepted
+  consequence of the "no internal user information" requirement.
+- Backend confidential-client authorization code flow (would require a secret).
+- SAML federation; MFA is enforced by Entra ID conditional access, not by the app.
 
 Token storage caveat:
 
-- The frontend currently stores the JWT and user profile in browser `localStorage`.
-- This is acceptable for local MVP/demo usage but should be reviewed by Information Security before enterprise rollout.
+- The frontend stores the Entra ID token and user profile in browser `localStorage`.
+- This should be reviewed by Information Security if HttpOnly session cookies are required.
 
 ## E. Authorization Model
 
@@ -108,12 +114,18 @@ Known RBAC limitations / areas to review:
 
 Do not use real production credentials in scan documentation.
 
-Create or provide these test users before scanning:
+Sign-in is Microsoft Entra ID only, so the scanner cannot log in with a
+username and password. Provide **test Entra accounts in the tenant** and drive
+authenticated scans with the ID token each account obtains after an interactive
+sign-in (the bearer token the browser sends to `/api/backend`).
 
-| Role | Placeholder Email | Placeholder Password |
+| Role | Placeholder Entra UPN | Credential |
 |---|---|---|
-| ADMIN | `<admin_test_email>` | `<admin_test_password>` |
-| USER | `<user_test_email>` | `<user_test_password>` |
+| ADMIN | `<admin_test_upn>` | Entra account; token captured after interactive sign-in |
+| USER | `<user_test_upn>` | Entra account; token captured after interactive sign-in |
+
+Note that these tokens expire (roughly 60 minutes) and must be refreshed during
+long scans. The CRM role is set in **User Management**, not in Entra.
 
 Recommended scan modes:
 
@@ -186,7 +198,7 @@ Application-level audit logs exist in `audit_logs`.
 
 Audit log examples include:
 
-- Admin user create/update/activate/deactivate/role/password reset.
+- Admin user create/update/activate/deactivate/role change and section-access change.
 - Import upload/candidate/commit actions.
 - CRM create/update/archive operations across many domain records.
 - Startup deck upload/archive.
@@ -204,7 +216,7 @@ Caveats:
 - Do not run destructive tests against production data without explicit approval.
 - File upload tests should use safe synthetic test files.
 - Import commit tests can create or update CRM data.
-- Admin user management tests can deactivate users or reset passwords.
+- Admin user management tests can deactivate users or change their roles and section access.
 - Archive/delete-like tests should use dedicated test records.
 - Leaderboard reset tests should use dry-run mode or test data.
 - Rate/load tests should be coordinated.
@@ -226,7 +238,7 @@ Recommended areas:
 - SQL injection and input validation.
 - XSS in free-text fields such as notes, descriptions, comments, and uploaded filenames.
 - CSRF/session/token handling review.
-- JWT handling and token expiry.
+- Entra ID token validation: forged/expired/wrong-audience/wrong-tenant tokens, and Graph access tokens presented to the CRM API.
 - CORS and security headers.
 - Dependency vulnerability scan.
 - Secret scan.

@@ -5,7 +5,6 @@ from typing import Any
 import yaml
 from sqlalchemy import select
 
-from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models import BorusanCompany, Status, User
 
@@ -86,10 +85,15 @@ def upsert_borusan_companies() -> None:
 
 
 def create_initial_admin() -> None:
+    """Pre-provision an ADMIN row so an administrator exists before first sign-in.
+
+    No credential is created: authentication is Microsoft Entra ID only. The
+    email must match the administrator's Entra UPN for the account to be
+    matched at sign-in.
+    """
     email = os.getenv("INITIAL_ADMIN_EMAIL")
-    password = os.getenv("INITIAL_ADMIN_PASSWORD")
     full_name = os.getenv("INITIAL_ADMIN_FULL_NAME", "Initial Admin")
-    if not email or not password:
+    if not email:
         return
     with SessionLocal() as db:
         result = db.execute(select(User).where(User.email == email.lower()))
@@ -99,7 +103,6 @@ def create_initial_admin() -> None:
             User(
                 email=email.lower(),
                 full_name=full_name,
-                password_hash=hash_password(password),
                 role="ADMIN",
                 is_active=True,
             )

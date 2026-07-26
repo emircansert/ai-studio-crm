@@ -43,18 +43,27 @@ def make_token(
     kid: str = KID,
     private_pem: str = PRIVATE_PEM,
     include_upn: bool = True,
+    tenant_id: str | None = TENANT_ID,
+    upn_claim: str = "preferred_username",
 ) -> str:
+    """Build a token shaped like a Microsoft OIDC ID token.
+
+    The app registration exposes no custom API, so real tokens carry the bare
+    client id as their audience.
+    """
     now = int(time.time())
     claims = {
         "sub": str(uuid.uuid4()),
-        "aud": audience or f"api://{CLIENT_ID}",
+        "aud": audience or CLIENT_ID,
         "iss": issuer or f"https://login.microsoftonline.com/{TENANT_ID}/v2.0",
         "iat": now,
         "exp": now + expires_in,
         "name": "Audit User",
     }
+    if tenant_id is not None:
+        claims["tid"] = tenant_id
     if include_upn:
-        claims["preferred_username"] = upn
+        claims[upn_claim] = upn
     return jwt.encode(claims, private_pem, algorithm="RS256", headers={"kid": kid})
 
 
@@ -80,8 +89,38 @@ class EntraTokenValidationTests(unittest.TestCase):
         self.assertEqual(extract_display_name(claims, "x"), "Audit User")
 
     def test_bare_client_id_audience_accepted(self) -> None:
+        """The ID token's audience is the bare client id."""
         claims = self._validator().validate(make_token(audience=CLIENT_ID))
         self.assertIn("aud", claims)
+
+    def test_custom_api_audience_rejected(self) -> None:
+        """No custom API is exposed, so an api:// audience must not be accepted."""
+        with self.assertRaises(EntraAuthError):
+            self._validator().validate(make_token(audience=f"api://{CLIENT_ID}"))
+
+    def test_graph_access_token_rejected(self) -> None:
+        """A Microsoft Graph access token is addressed to Graph, not to this app."""
+        with self.assertRaises(EntraAuthError):
+            self._validator().validate(make_token(audience="https://graph.microsoft.com"))
+        with self.assertRaises(EntraAuthError):
+            self._validator().validate(
+                make_token(audience="00000003-0000-0000-c000-000000000000")
+            )
+
+    def test_token_from_other_tenant_rejected(self) -> None:
+        """A correctly signed token carrying a foreign tid must be refused."""
+        with self.assertRaises(EntraAuthError):
+            self._validator().validate(
+                make_token(tenant_id="99999999-8888-7777-6666-555555555555")
+            )
+
+    def test_upn_claim_precedence(self) -> None:
+        """preferred_username -> upn -> email, matching UPN_CLAIMS order."""
+        for claim in ("preferred_username", "upn", "email"):
+            claims = self._validator().validate(
+                make_token(upn=f"user.{claim}@borusan.com", upn_claim=claim, include_upn=True)
+            )
+            self.assertEqual(extract_upn(claims), f"user.{claim}@borusan.com", claim)
 
     def test_expired_token_rejected(self) -> None:
         with self.assertRaises(EntraAuthError):
@@ -154,11 +193,39 @@ class SectionAccessUpnTests(unittest.TestCase):
         from app.core.section_access import default_access_rows_for_user, user_upn
         from app.models import User
 
-        user = User(email="Mixed.Case@Borusan.com", full_name="X", password_hash="x", role="USER")
+        user = User(email="Mixed.Case@Borusan.com", full_name="X", role="USER")
         self.assertEqual(user_upn(user), "mixed.case@borusan.com")
         rows = list(default_access_rows_for_user(user))
         self.assertTrue(all(row.user_upn == "mixed.case@borusan.com" for row in rows))
         self.assertTrue(all(row.access_level == "HIDDEN" for row in rows))
+
+
+class NoLocalCredentialSurfaceTests(unittest.TestCase):
+    """Guards the Information Security requirement that the CRM hold no local
+    user credentials and offer no password sign-in path."""
+
+    def test_user_model_has_no_credential_column(self) -> None:
+        from app.models import User
+
+        self.assertNotIn("password_hash", User.__table__.columns)
+        self.assertFalse(
+            [c.name for c in User.__table__.columns if "password" in c.name or "secret" in c.name]
+        )
+
+    def test_no_password_or_login_routes_exist(self) -> None:
+        from app.main import app
+
+        paths = {route.path for route in app.routes}
+        self.assertNotIn("/api/v1/auth/login", paths)
+        offenders = [p for p in paths if "password" in p or p.endswith("/login")]
+        self.assertEqual(offenders, [], offenders)
+
+    def test_local_credential_module_is_gone(self) -> None:
+        import importlib
+
+        for module in ("app.core.security", "app.schemas.auth"):
+            with self.assertRaises(ModuleNotFoundError, msg=module):
+                importlib.import_module(module)
 
 
 if __name__ == "__main__":

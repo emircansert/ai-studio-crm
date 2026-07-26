@@ -13,7 +13,7 @@ Create Date: 2026-07-07
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
+from alembic import context, op
 
 revision: str = "20260707_0019"
 down_revision: str | None = "20260706_0018"
@@ -33,15 +33,16 @@ def upgrade() -> None:
         """
     )
 
-    connection = op.get_bind()
-    unmapped = connection.execute(
-        sa.text("SELECT COUNT(*) FROM user_section_access WHERE user_upn IS NULL")
-    ).scalar()
-    if unmapped:
-        raise RuntimeError(
-            f"{unmapped} user_section_access rows could not be mapped to a UPN. "
-            "Resolve these manually before re-running the migration; no data was dropped."
-        )
+    if not context.is_offline_mode():
+        connection = op.get_bind()
+        unmapped = connection.execute(
+            sa.text("SELECT COUNT(*) FROM user_section_access WHERE user_upn IS NULL")
+        ).scalar()
+        if unmapped:
+            raise RuntimeError(
+                f"{unmapped} user_section_access rows could not be mapped to a UPN. "
+                "Resolve these manually before re-running the migration; no data was dropped."
+            )
 
     # SQL Server requires dropping dependent constraints/indexes before the column.
     op.drop_constraint("uq_user_section_access_user_section", "user_section_access", type_="unique")

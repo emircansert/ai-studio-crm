@@ -37,12 +37,6 @@ export type UserSectionAccessResponse = {
   access: Record<string, SectionAccessLevel>;
 };
 
-export type LoginResponse = {
-  access_token: string;
-  token_type: string;
-  user: User;
-};
-
 export type NotificationItem = {
   id: string;
   user_id: string;

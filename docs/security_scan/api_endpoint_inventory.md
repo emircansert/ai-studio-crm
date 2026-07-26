@@ -13,9 +13,9 @@ Authentication model:
 | `GET` | `/api/v1/health` | `health.py` | No | No | none | JSON | Basic health check. | Should not expose secrets or environment values. |
 | `GET` | `/api/v1/health/readiness` | `health.py` | No | No | none | JSON | DB/migration/table readiness check. | Verify no connection strings, credentials, or stack traces are returned. |
 | `GET` | `/api/v1/health/routes` | `health.py` | No | No | none | JSON | Safe route diagnostics for key route registration. | Validate it only exposes route names, not sensitive runtime config. |
-| `POST` | `/api/v1/auth/login` | `auth.py` | No | No | JSON | JSON | Login with email/password and receive JWT. | Test brute-force/rate-limit expectations, inactive user behavior, generic error messages. |
-| `GET` | `/api/v1/auth/me` | `auth.py` | Yes | No | none | JSON | Current authenticated user. | Verify token expiry/invalid token handling. |
-| `GET` | `/api/v1/users/active` | `users.py` | Yes | No | none/query | JSON | Active user picker for assignments. | Confirm no password hashes or inactive users are exposed. |
+| `GET` | `/api/v1/auth/config` | `auth.py` | No | No | none | JSON | Reports the auth mode (always `entra`). | Confirm it leaks no tenant/client identifiers or other config. |
+| `GET` | `/api/v1/auth/me` | `auth.py` | Yes | No | none | JSON | Current authenticated user; provisions the CRM record just-in-time. | Test expired/forged/wrong-audience/wrong-tenant Entra tokens and deactivated users. |
+| `GET` | `/api/v1/users/active` | `users.py` | Yes | No | none/query | JSON | Active user picker for assignments. | Confirm inactive users are not exposed. |
 | `GET` | `/api/v1/dashboard/summary` | `dashboard.py` | Yes | No | none/query | JSON | Dashboard metrics. | Check authorization and aggregate data visibility. |
 | `GET, POST` | `/api/v1/organizations` | `organizations.py` | Yes | No | JSON for `POST`; query for `GET` | JSON | Startup/company/library list and manual create. | Test filtering, pagination, injection, validation, RBAC expectations. |
 | `GET, PATCH, PUT` | `/api/v1/organizations/{organization_id}` | `organizations.py` | Yes | No | JSON for write methods | JSON | Organization detail/update. | Test object-level authorization expectations and input validation. |
@@ -66,9 +66,9 @@ Authentication model:
 | `GET` | `/api/v1/leaderboard`, `/me` | `leaderboard.py` | Yes | No | query | JSON | CRM Activity Points leaderboard. | Verify users can only see intended leaderboard data. |
 | `GET` | `/api/v1/leaderboard/champion`, `/champion/me`, `/champion/rules`, `/champion/users/{user_id}` | `leaderboard.py` | Yes | No | query | JSON | YZ Champion Score leaderboard and rules. | Check user detail exposure expectations. |
 | `POST` | `/api/v1/admin/leaderboard/reset` | `admin_leaderboard.py` | Yes | Yes | JSON | JSON | Dry-run/apply contribution reset exclusion. | Destructive-like admin action; use dry run or test data. |
-| `GET, POST` | `/api/v1/admin/users` | `admin_users.py` | Yes | Yes | JSON for `POST` | JSON | Admin user list/create. | Verify no password hashes are exposed; test password policy expectations. |
-| `GET, PUT` | `/api/v1/admin/users/{user_id}` | `admin_users.py` | Yes | Yes | JSON for `PUT` | JSON | Admin user detail/update. | Test last-admin protection and RBAC. |
-| `PATCH` | `/api/v1/admin/users/{user_id}/activate`, `/deactivate`, `/role`, `/reset-password` | `admin_users.py` | Yes | Yes | JSON for role/password; none for activate/deactivate | JSON | User lifecycle/admin actions. | Sensitive admin-only actions; scan against test users. |
+| `GET, POST` | `/api/v1/admin/users` | `admin_users.py` | Yes | Yes | JSON for `POST` | JSON | Admin user list / pre-provision (no credential is set). | Verify the response carries no credential fields and that `POST` cannot set one. |
+| `GET, PUT` | `/api/v1/admin/users/{user_id}` | `admin_users.py` | Yes | Yes | JSON for `PUT` | JSON | Admin user detail/update. | Test last-admin protection, RBAC, and that unknown fields are ignored. |
+| `PATCH` | `/api/v1/admin/users/{user_id}/activate`, `/deactivate`, `/role` | `admin_users.py` | Yes | Yes | JSON for role; none for activate/deactivate | JSON | User lifecycle/admin actions. | Sensitive admin-only actions; scan against test users. |
 | `GET` | `/api/v1/admin/audit-logs` | `admin_audit_logs.py` | Yes | Yes | query | JSON | Audit log listing. | Verify admin-only access; logs may include before/after business data. |
 | `GET, POST, PATCH` | `/api/v1/admin/branding[...]` | `admin_branding.py` | Yes | Mixed | JSON or multipart form-data | JSON/file download | Branding asset management. | Upload is admin-only; active/content reads require authentication. |
 | `POST` | `/api/v1/admin/branding/upload` | `admin_branding.py` | Yes | Yes | multipart form-data | JSON | Upload active logo. | File upload endpoint; image types only; 2 MB limit. |

@@ -52,11 +52,11 @@ Set local env vars:
 
 ```powershell
 $env:DATABASE_URL="mssql+pyodbc://@localhost\SQLEXPRESS01/BorusanAIEcosystemCRM?driver=ODBC+Driver+17+for+SQL+Server&trusted_connection=yes&TrustServerCertificate=yes"
-$env:JWT_SECRET_KEY="replace-with-a-long-random-local-secret"
+$env:ENVIRONMENT="development"
 $env:BACKEND_CORS_ORIGINS="http://localhost:3000"
-$env:INITIAL_ADMIN_EMAIL="admin@example.com"
-$env:INITIAL_ADMIN_PASSWORD="change-me-admin-password"
-$env:INITIAL_ADMIN_FULL_NAME="Initial Admin"
+$env:ENTRA_TENANT_ID="<directory-tenant-id>"
+$env:ENTRA_CLIENT_ID="<application-client-id>"
+$env:ENTRA_ADMIN_UPNS="first.admin@borusan.com"
 ```
 
 Run migration and seed:
@@ -77,7 +77,27 @@ Verify:
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/health
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/health/readiness
+Invoke-RestMethod http://127.0.0.1:8000/api/v1/auth/config
 ```
+
+The frontend also needs the matching public Entra values (see
+`frontend/.env.local`):
+
+```powershell
+$env:NEXT_PUBLIC_ENTRA_TENANT_ID="<tenant-id>"
+$env:NEXT_PUBLIC_ENTRA_CLIENT_ID="<client-id>"
+$env:NEXT_PUBLIC_ENTRA_REDIRECT_URI="http://localhost:3000"
+```
+
+**No client secret is used anywhere.** Sign-in is an MSAL public-client PKCE
+flow, so the redirect URI must be registered in Azure under the
+**Single-page application (SPA)** platform — not Web — as the full callback path:
+
+```text
+http://localhost:3000/auth/callback
+```
+
+See `docs/auth_entra_id_setup.md` for the full setup.
 
 ## 3. Frontend
 
@@ -88,6 +108,9 @@ $env:NEXT_PUBLIC_API_BASE_URL="/api/backend"
 $env:BACKEND_API_ORIGIN="http://127.0.0.1:8000"
 npm run dev
 ```
+
+Do not set Azure tenant IDs, client IDs, client secrets, authorization codes,
+Microsoft tokens, or CRM JWTs in frontend `NEXT_PUBLIC_*` variables.
 
 The browser should now talk to the frontend origin only:
 
@@ -145,13 +168,25 @@ Keep backend running, then in a second terminal:
 cd C:\Users\emirc\borusan-ai-studio-crm\backend
 .\.venv\Scripts\Activate.ps1
 $env:SMOKE_API_BASE_URL="http://127.0.0.1:8000"
-$env:SMOKE_ADMIN_EMAIL="admin@example.com"
-$env:SMOKE_ADMIN_PASSWORD="change-me-admin-password"
+$env:SMOKE_BEARER_TOKEN="<paste-current-entra-id-token>"
 python scripts\smoke_test_api.py
 ```
+
+Sign-in is Entra ID only, so the script cannot mint its own token: sign in to
+the CRM and copy the bearer token the browser sends to `/api/backend`.
 
 Expected result: all checks pass.
 
 ## 5. Stop Services
 
 Use `Ctrl+C` in each terminal running `uvicorn` and `npm run dev`.
+
+## 6. Locked Out of Admin?
+
+There is no local password and no break-glass account. Add the administrator's
+Entra UPN to `ENTRA_ADMIN_UPNS` in `backend/.env`, restart the backend, and have
+them sign in again — the list is re-evaluated on every sign-in, so they are
+promoted to `ADMIN` immediately.
+
+The full procedure (including the tenant-outage case and the last-resort SQL
+fallback) is in the README under **"Locked Out? Admin Recovery Procedure"**.

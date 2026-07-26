@@ -88,7 +88,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str
+    """Users carry no credential: identity comes from Microsoft Entra ID."""
 
 
 class UserUpdate(BaseModel):
@@ -96,27 +96,18 @@ class UserUpdate(BaseModel):
     full_name: str | None = None
     role: str | None = None
     is_active: bool | None = None
-    password: str | None = None
-
-
-class UserPasswordChange(BaseModel):
-    current_password: str = Field(min_length=1)
-    new_password: str = Field(min_length=8, max_length=128)
 
 
 class AdminUserCreate(BaseModel):
+    """Pre-provision a CRM user. No password: sign-in is Entra ID only."""
+
     email: str
     full_name: str
     role: str = "USER"
-    temporary_password: str
 
 
 class AdminUserRoleUpdate(BaseModel):
     role: str
-
-
-class AdminUserPasswordReset(BaseModel):
-    temporary_password: str
 
 
 class UserRead(UserBase, ORMModel):

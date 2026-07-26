@@ -17,7 +17,6 @@ type UserForm = {
   email: string;
   full_name: string;
   role: "ADMIN" | "USER";
-  temporary_password: string;
 };
 
 export default function AdminUsersPage() {
@@ -34,10 +33,8 @@ export default function AdminUsersPage() {
   const [form, setForm] = useState<UserForm>({
     email: "",
     full_name: "",
-    role: "USER",
-    temporary_password: ""
+    role: "USER"
   });
-  const [resetPasswordByUser, setResetPasswordByUser] = useState<Record<string, string>>({});
   const [sectionDefinitions, setSectionDefinitions] = useState<SectionAccessDefinition[]>([]);
   const [accessRows, setAccessRows] = useState<UserAccessMatrixResponse["users"]>([]);
   const [accessDraft, setAccessDraft] = useState<Record<string, Record<string, SectionAccessLevel>>>({});
@@ -88,8 +85,8 @@ export default function AdminUsersPage() {
         method: "POST",
         body: JSON.stringify(form)
       });
-      setNotice("User created with temporary password.");
-      setForm({ email: "", full_name: "", role: "USER", temporary_password: "" });
+      setNotice("User created. They sign in with their Microsoft account.");
+      setForm({ email: "", full_name: "", role: "USER" });
       setCreateOpen(false);
       await load();
     } catch (caught) {
@@ -178,7 +175,7 @@ export default function AdminUsersPage() {
       <PageHeader
         eyebrow="Admin"
         title="User Management"
-        description="Create local CRM users, manage roles, deactivate accounts, and reset temporary passwords."
+        description="Pre-provision Entra users, manage roles and section access, and deactivate accounts."
         actions={
           <div className="button-row">
             <Button variant="secondary" onClick={() => void load()}>
@@ -195,10 +192,11 @@ export default function AdminUsersPage() {
 
       <div className="command-hero">
         <div>
-          <h2>Local admin readiness</h2>
+          <h2>Entra ID identity management</h2>
           <p>
-            Users are physically retained and deactivated when needed. Password hashes never leave the backend, and the
-            only active admin is protected from accidental lockout.
+            Sign-in is handled entirely by Microsoft Entra ID; the CRM stores no passwords. Users are created
+            automatically on first sign-in, are retained and deactivated rather than deleted, and the only active admin
+            is protected from accidental lockout.
           </p>
         </div>
         <Badge tone="info">{isLoading ? "Loading" : `${users.length} users`}</Badge>
@@ -233,17 +231,20 @@ export default function AdminUsersPage() {
         <SectionCard>
           <div className="section-heading">
             <h2>Create user</h2>
-            <p>Admins set a temporary password manually. No email delivery is attempted.</p>
+            <p>
+              Optional: pre-provision a record so a role and section access can be set before the person&apos;s first
+              sign-in. Use their Entra sign-in address (UPN). No password is set &mdash; they authenticate with their
+              Microsoft account, and a record is created automatically on first sign-in either way.
+            </p>
           </div>
           <form className="form-stack" onSubmit={createUser}>
             <div className="two-column">
-              <Input required label="Email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+              <Input required label="Email (Entra UPN)" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
               <Input required label="Full name" value={form.full_name} onChange={(event) => setForm({ ...form, full_name: event.target.value })} />
               <Select label="Role" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserForm["role"] })}>
                 <option value="USER">User</option>
                 <option value="ADMIN">Admin</option>
               </Select>
-              <Input required label="Temporary password" type="password" value={form.temporary_password} onChange={(event) => setForm({ ...form, temporary_password: event.target.value })} />
             </div>
             <Button type="submit">
               <ShieldCheck size={16} />
@@ -258,7 +259,7 @@ export default function AdminUsersPage() {
           <div className="section-heading section-heading--inline">
             <div>
               <h2>Edit user</h2>
-              <p>Update identity details, role, and active state without exposing password hashes.</p>
+              <p>Update the CRM copy of the user&apos;s identity details, role, and active state.</p>
             </div>
             <Button variant="ghost" onClick={() => setEditingUser(null)}>Cancel</Button>
           </div>
@@ -283,7 +284,7 @@ export default function AdminUsersPage() {
       <SectionCard>
         <div className="section-heading">
           <h2>Users</h2>
-          <p>Admin-only local identity management. Entra ID can replace this boundary later.</p>
+          <p>Admin-only. Identities come from Microsoft Entra ID; roles and active state are managed here.</p>
         </div>
         <Table
           rows={filteredUsers}
@@ -314,28 +315,6 @@ export default function AdminUsersPage() {
                   <option value="USER">User</option>
                   <option value="ADMIN">Admin</option>
                 </Select>
-              )
-            },
-            {
-              key: "reset",
-              header: "Reset password",
-              render: (row) => (
-                <div className="button-row">
-                  <Input
-                    aria-label={`Temporary password for ${row.email}`}
-                    placeholder="Temporary password"
-                    type="password"
-                    value={resetPasswordByUser[row.id] ?? ""}
-                    onChange={(event) => setResetPasswordByUser({ ...resetPasswordByUser, [row.id]: event.target.value })}
-                  />
-                  <Button
-                    variant="secondary"
-                    disabled={!resetPasswordByUser[row.id]}
-                    onClick={() => void patchUser(row.id, "reset-password", { temporary_password: resetPasswordByUser[row.id] }, "Password reset.")}
-                  >
-                    Reset
-                  </Button>
-                </div>
               )
             },
             {

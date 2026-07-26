@@ -15,8 +15,8 @@ Use this flow for a Borusan internal local MVP demo.
 ### 1. Login
 
 - Open `http://localhost:3000`.
-- Login as an admin.
-- Explain that local JWT auth is MVP-only and the architecture is ready for future Microsoft Entra ID.
+- Click **Sign in with Microsoft** and sign in as an admin.
+- Explain that sign-in is Microsoft Entra ID single sign-on only: the CRM stores no passwords, and access follows the user's Borusan Microsoft account.
 
 ### 2. Dashboard Overview
 
@@ -85,7 +85,7 @@ Use this flow for a Borusan internal local MVP demo.
 ### 12. Admin User Management
 
 - Open Admin Panel > User Management.
-- Show user search, create user, role changes, activate/deactivate, and password reset.
+- Show user search, pre-provisioning a user by Entra UPN, role changes, activate/deactivate, and the section access matrix.
 - Explain protection against accidentally deactivating the only active admin.
 
 ### 13. Branding Upload
