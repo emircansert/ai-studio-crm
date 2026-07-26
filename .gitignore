@@ -19,6 +19,8 @@ frontend/.next/
 .next/
 frontend/out/
 out/
+# TypeScript incremental build cache; regenerated on every build.
+*.tsbuildinfo
 
 # Uploads / local files
 uploads/
